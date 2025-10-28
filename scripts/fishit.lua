@@ -4,6 +4,7 @@ print("🧠 Loading Noctics Hub GUI...")
 -- Services
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 local Player = Players.LocalPlayer
 
 -- GUI Root
@@ -21,7 +22,7 @@ MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 MainFrame.BorderSizePixel = 0
 
 local UICorner = Instance.new("UICorner", MainFrame)
-UICorner.CornerRadius = UDim.new(0, 10)
+UICorner.CornerRadius = UDim.new(0, 12)
 
 local UIStroke = Instance.new("UIStroke", MainFrame)
 UIStroke.Color = Color3.fromRGB(60, 100, 255)
@@ -34,8 +35,8 @@ TopBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 TopBar.BorderSizePixel = 0
 
 local Title = Instance.new("TextLabel", TopBar)
-Title.Text = "Noctics Hub"
-Title.Size = UDim2.new(1, -20, 1, 0)
+Title.Text = "🖤 Noctics Hub"
+Title.Size = UDim2.new(1, -60, 1, 0)
 Title.Position = UDim2.new(0, 20, 0, 0)
 Title.BackgroundTransparency = 1
 Title.Font = Enum.Font.GothamBold
@@ -43,15 +44,34 @@ Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextSize = 20
 Title.TextXAlignment = Enum.TextXAlignment.Left
 
+-- Minimize & Close Buttons
+local CloseBtn = Instance.new("TextButton", TopBar)
+CloseBtn.Size = UDim2.new(0, 30, 0, 30)
+CloseBtn.Position = UDim2.new(1, -35, 0, 5)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+CloseBtn.Text = "✕"
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+CloseBtn.TextSize = 18
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
+
+local MinimizeBtn = Instance.new("TextButton", TopBar)
+MinimizeBtn.Size = UDim2.new(0, 30, 0, 30)
+MinimizeBtn.Position = UDim2.new(1, -70, 0, 5)
+MinimizeBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MinimizeBtn.Text = "—"
+MinimizeBtn.Font = Enum.Font.GothamBold
+MinimizeBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+MinimizeBtn.TextSize = 18
+Instance.new("UICorner", MinimizeBtn).CornerRadius = UDim.new(0, 6)
+
 -- Sidebar
 local Sidebar = Instance.new("Frame", MainFrame)
 Sidebar.Size = UDim2.new(0, 150, 1, -40)
 Sidebar.Position = UDim2.new(0, 0, 0, 40)
 Sidebar.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
 Sidebar.BorderSizePixel = 0
-
-local SidebarCorner = Instance.new("UICorner", Sidebar)
-SidebarCorner.CornerRadius = UDim.new(0, 8)
+Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0, 8)
 
 -- Content Area
 local Content = Instance.new("Frame", MainFrame)
@@ -170,10 +190,7 @@ local menus = {
 
 -- Sidebar Buttons
 local UIList = Instance.new("UIListLayout", Sidebar)
-UIList.Padding = UDim.new(0, 5)
 UIList.FillDirection = Enum.FillDirection.Vertical
-UIList.HorizontalAlignment = Enum.HorizontalAlignment.Center
-UIList.VerticalAlignment = Enum.VerticalAlignment.Top
 UIList.SortOrder = Enum.SortOrder.LayoutOrder
 UIList.Padding = UDim.new(0, 8)
 
@@ -201,5 +218,51 @@ for _, menu in ipairs(menus) do
 		TweenService:Create(Btn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(25, 25, 25)}):Play()
 	end)
 end
+
+-- Minimize & Close functionality
+local minimized = false
+local Icon = Instance.new("TextButton")
+Icon.Size = UDim2.new(0, 40, 0, 40)
+Icon.Position = UDim2.new(0, 10, 0, 10)
+Icon.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+Icon.Text = "🖤"
+Icon.Font = Enum.Font.GothamBold
+Icon.TextColor3 = Color3.fromRGB(255, 255, 255)
+Icon.TextSize = 20
+Icon.Visible = false
+Instance.new("UICorner", Icon).CornerRadius = UDim.new(0, 6)
+Icon.Parent = ScreenGui
+
+MinimizeBtn.MouseButton1Click:Connect(function()
+	MainFrame.Visible = false
+	Icon.Visible = true
+	minimized = true
+end)
+
+CloseBtn.MouseButton1Click:Connect(function()
+	ScreenGui:Destroy()
+end)
+
+Icon.MouseButton1Click:Connect(function()
+	MainFrame.Visible = true
+	Icon.Visible = false
+	minimized = false
+end)
+
+-- Keybind G to toggle minimized
+UserInputService.InputBegan:Connect(function(input, gp)
+	if gp then return end
+	if input.KeyCode == Enum.KeyCode.G then
+		if minimized then
+			MainFrame.Visible = true
+			Icon.Visible = false
+			minimized = false
+		else
+			MainFrame.Visible = false
+			Icon.Visible = true
+			minimized = true
+		end
+	end
+end)
 
 print("✅ Noctics Hub GUI Loaded Successfully.")
