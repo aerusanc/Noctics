@@ -1,8 +1,7 @@
 --// Noctics Universal Loader
 print("🌙 Noctics Hub Universal Loader")
 
-local nocticsLogoId = "rbxassetid://6023426926" -- Logo Roblox universal
- -- ganti logo kamu
+local nocticsLogoId = "rbxassetid://YOUR_LOGO_ASSET_ID" -- ganti logo kamu
 
 --// Notifikasi Kustom
 local function showNotification(title, message)
@@ -59,15 +58,9 @@ end
 --// Daftar Game dan Script
 local supportedGames = {
     [121864768012064] = "https://raw.githubusercontent.com/aerusanc/Noctics/main/scripts/fishit.lua",
-    [102234703920418] = "https://raw.githubusercontent.com/aerusanc/Noctics/main/src/mountdaun.lua",
-    [2693023319] = "https://raw.githubusercontent.com/aerusanc/Noctics/main/src/antartica.lua",
+    [102234703920418] = "https://raw.githubusercontent.com/aerusanc/Noctics/main/scripts/mountdaun.lua",
+    [2693023319] = "https://raw.githubusercontent.com/aerusanc/Noctics/main/scripts/antartica.lua",
 }
-
---// Load Main GUI (main.lua)
-local mainGuiUrl = "https://raw.githubusercontent.com/aerusanc/Noctics/main/src/main.lua"
-pcall(function()
-    loadstring(game:HttpGet(mainGuiUrl))()
-end)
 
 --// Deteksi Game
 local currentGame = game.PlaceId
