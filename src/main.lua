@@ -58,7 +58,7 @@ end
 
 --// Daftar Game dan Script
 local supportedGames = {
-    [121864768012064] = "https://raw.githubusercontent.com/aerusanc/Noctics/main/src/fishit.lua",
+    [121864768012064] = "https://raw.githubusercontent.com/aerusanc/Noctics/main/scripts/fishit.lua",
     [102234703920418] = "https://raw.githubusercontent.com/aerusanc/Noctics/main/src/mountdaun.lua",
     [2693023319] = "https://raw.githubusercontent.com/aerusanc/Noctics/main/src/antartica.lua",
 }
