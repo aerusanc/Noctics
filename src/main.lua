@@ -1,29 +1,36 @@
 -- src/main.lua
--- ✨ Noctics GUI dengan Icon & Animasi Menu ✨
+-- 🌙 Noctics Safe Mode: GUI aman & auto-recover di game protektif
 
 local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local StarterGui = game:GetService("StarterGui")
+local LocalPlayer = Players.LocalPlayer
 
 local Noctics = {}
 
 function Noctics.run()
-    -- Pastikan GUI lama tidak dobel
-    if game.CoreGui:FindFirstChild("NocticsUI") then
-        game.CoreGui.NocticsUI:Destroy()
+    print("[Noctics] Safe Mode dijalankan...")
+
+    -- Hapus GUI lama (jika ada)
+    for _, gui in pairs(LocalPlayer.PlayerGui:GetChildren()) do
+        if gui.Name:find("NocticsUI_") then
+            gui:Destroy()
+        end
     end
 
-    -- Buat ScreenGui
+    -- Buat nama GUI acak
+    local randomID = tostring(math.random(1000, 9999))
     local ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = "NocticsUI"
+    ScreenGui.Name = "NocticsUI_" .. randomID
     ScreenGui.ResetOnSpawn = false
-    ScreenGui.Parent = game.CoreGui
+    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
-    -- 🌙 Tombol Icon
+    -- 🌀 Tombol ikon toggle menu
     local IconButton = Instance.new("ImageButton")
-    IconButton.Name = "OpenMenuButton"
     IconButton.Size = UDim2.new(0, 50, 0, 50)
     IconButton.Position = UDim2.new(1, -70, 1, -70)
     IconButton.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    IconButton.Image = "rbxassetid://6035047377" -- contoh icon bulat (bisa diganti)
+    IconButton.Image = "rbxassetid://6035047377" -- icon default Roblox circle
     IconButton.ImageColor3 = Color3.fromRGB(255, 255, 255)
     IconButton.Parent = ScreenGui
 
@@ -31,29 +38,29 @@ function Noctics.run()
     UICorner.CornerRadius = UDim.new(1, 0)
     UICorner.Parent = IconButton
 
-    local UIStroke = Instance.new("UIStroke")
-    UIStroke.Thickness = 2
-    UIStroke.Color = Color3.fromRGB(80, 80, 255)
-    UIStroke.Parent = IconButton
+    local Stroke = Instance.new("UIStroke")
+    Stroke.Thickness = 2
+    Stroke.Color = Color3.fromRGB(100, 100, 255)
+    Stroke.Parent = IconButton
 
-    -- 📋 Frame Menu
+    -- 📋 Menu Frame
     local MenuFrame = Instance.new("Frame")
-    MenuFrame.Size = UDim2.new(0, 250, 0, 200)
-    MenuFrame.Position = UDim2.new(1, -300, 1, -280)
-    MenuFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    MenuFrame.Size = UDim2.new(0, 260, 0, 210)
+    MenuFrame.Position = UDim2.new(1, -290, 1, -280)
+    MenuFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
     MenuFrame.Visible = false
     MenuFrame.Parent = ScreenGui
 
     local MenuCorner = Instance.new("UICorner")
-    MenuCorner.CornerRadius = UDim.new(0, 12)
+    MenuCorner.CornerRadius = UDim.new(0, 10)
     MenuCorner.Parent = MenuFrame
 
-    local Stroke = Instance.new("UIStroke")
-    Stroke.Thickness = 2
-    Stroke.Color = Color3.fromRGB(90, 90, 255)
-    Stroke.Parent = MenuFrame
+    local MenuStroke = Instance.new("UIStroke")
+    MenuStroke.Thickness = 2
+    MenuStroke.Color = Color3.fromRGB(90, 90, 255)
+    MenuStroke.Parent = MenuFrame
 
-    -- Judul Menu
+    -- Judul
     local Title = Instance.new("TextLabel")
     Title.Size = UDim2.new(1, 0, 0, 40)
     Title.BackgroundTransparency = 1
@@ -63,58 +70,59 @@ function Noctics.run()
     Title.TextSize = 20
     Title.Parent = MenuFrame
 
-    -- Tombol contoh
-    local Button1 = Instance.new("TextButton")
-    Button1.Size = UDim2.new(1, -40, 0, 35)
-    Button1.Position = UDim2.new(0, 20, 0, 60)
-    Button1.Text = "Kirim Notifikasi"
-    Button1.Font = Enum.Font.Gotham
-    Button1.TextSize = 16
-    Button1.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Button1.BackgroundColor3 = Color3.fromRGB(60, 60, 255)
-    Button1.Parent = MenuFrame
+    -- Tombol Aksi
+    local Button = Instance.new("TextButton")
+    Button.Size = UDim2.new(1, -40, 0, 35)
+    Button.Position = UDim2.new(0, 20, 0, 70)
+    Button.Text = "Kirim Notifikasi"
+    Button.Font = Enum.Font.Gotham
+    Button.TextSize = 16
+    Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Button.BackgroundColor3 = Color3.fromRGB(60, 60, 255)
+    Button.Parent = MenuFrame
 
     local BtnCorner = Instance.new("UICorner")
-    BtnCorner.CornerRadius = UDim.new(0, 6)
-    BtnCorner.Parent = Button1
+    BtnCorner.CornerRadius = UDim.new(0, 8)
+    BtnCorner.Parent = Button
 
-    Button1.MouseButton1Click:Connect(function()
-        game.StarterGui:SetCore("SendNotification", {
+    Button.MouseButton1Click:Connect(function()
+        StarterGui:SetCore("SendNotification", {
             Title = "Noctics",
-            Text = "Notifikasi dikirim!",
+            Text = "Notifikasi berhasil dikirim!",
             Duration = 3
         })
     end)
 
-    -- 🌠 Animasi buka/tutup menu
+    -- ✨ Animasi buka/tutup
     local menuOpen = false
-    local tweenIn = TweenService:Create(MenuFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-        Position = UDim2.new(1, -300, 1, -280),
-        BackgroundTransparency = 0
-    })
-    local tweenOut = TweenService:Create(MenuFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-        Position = UDim2.new(1, -300, 1, -250),
-        BackgroundTransparency = 1
-    })
-
     IconButton.MouseButton1Click:Connect(function()
-        if menuOpen then
-            tweenOut:Play()
-            task.wait(0.3)
-            MenuFrame.Visible = false
-        else
-            MenuFrame.Visible = true
-            tweenIn:Play()
-        end
         menuOpen = not menuOpen
+        MenuFrame.Visible = menuOpen
+
+        local goal = {Position = menuOpen and UDim2.new(1, -290, 1, -280) or UDim2.new(1, -290, 1, -250)}
+        local tween = TweenService:Create(MenuFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), goal)
+        tween:Play()
+    end)
+
+    -- 🔁 Auto-recover protection
+    task.spawn(function()
+        while task.wait(2) do
+            if not ScreenGui or not ScreenGui.Parent then
+                warn("[Noctics] GUI hilang, membuat ulang...")
+                Noctics.run()
+                break
+            end
+        end
     end)
 
     -- 🔔 Notifikasi awal
-    game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = "Noctics Loaded",
-        Text = "Klik ikon di pojok kanan bawah untuk membuka menu.",
+    StarterGui:SetCore("SendNotification", {
+        Title = "Noctics Safe Mode",
+        Text = "Klik ikon kanan bawah untuk membuka menu.",
         Duration = 6
     })
+
+    print("[Noctics] GUI berhasil dibuat.")
 end
 
 return Noctics
