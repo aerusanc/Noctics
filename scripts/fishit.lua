@@ -441,8 +441,8 @@ local function pageMain()
 
 	-- Fishing
 	local fishing = makeContentDropdown("Fishing")
-	fishing.addToggle("Auto Fishing", false, function(on)
-		print("Auto Fishing:", on)
+	fishing.addToggle("Auto Fishing (Instant Catch)", false, function(on)
+		print("Auto Fishing Instant:", on)
 		if on then FishIt.Start() else FishIt.Stop() end
 	end)
 	fishing.addToggle("Cancel Fishing", false, function(on)
