@@ -1,0 +1,14 @@
+.DS_Store
+.vscode/
+node_modules/
+*.rbxl
+*.rbxm
+.env
+
+# Lua temporary files
+*.bak
+*.tmp
+
+# OS-specific
+.DS_Store
+Thumbs.db
