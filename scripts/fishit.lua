@@ -19,7 +19,9 @@ end
 
 --// GUI
 local gui = Instance.new("ScreenGui")
-gui.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+gui.Name = "NocticsFishIt"
+gui.ResetOnSpawn = false
+gui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
 local mainFrame = Instance.new("Frame", gui)
 mainFrame.Size = UDim2.new(0, 300, 0, 200)
