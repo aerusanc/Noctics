@@ -1,128 +1,84 @@
--- src/main.lua
--- 🌙 Noctics Safe Mode: GUI aman & auto-recover di game protektif
+--// Noctics Universal Loader
+print("🌙 Noctics Hub Universal Loader")
 
-local TweenService = game:GetService("TweenService")
-local Players = game:GetService("Players")
-local StarterGui = game:GetService("StarterGui")
-local LocalPlayer = Players.LocalPlayer
+local nocticsLogoId = "rbxassetid://YOUR_LOGO_ASSET_ID" -- ganti logo kamu
 
-local Noctics = {}
-
-function Noctics.run()
-    print("[Noctics] Safe Mode dijalankan...")
-
-    -- Hapus GUI lama (jika ada)
-    for _, gui in pairs(LocalPlayer.PlayerGui:GetChildren()) do
-        if gui.Name:find("NocticsUI_") then
-            gui:Destroy()
-        end
+--// Notifikasi Kustom
+local function showNotification(title, message)
+    local CoreGui = game:GetService("CoreGui")
+    if CoreGui:FindFirstChild("NocticsNotifGui") then
+        CoreGui.NocticsNotifGui:Destroy()
     end
 
-    -- Buat nama GUI acak
-    local randomID = tostring(math.random(1000, 9999))
-    local ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = "NocticsUI_" .. randomID
-    ScreenGui.ResetOnSpawn = false
-    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+    local gui = Instance.new("ScreenGui", CoreGui)
+    gui.Name = "NocticsNotifGui"
 
-    -- 🌀 Tombol ikon toggle menu
-    local IconButton = Instance.new("ImageButton")
-    IconButton.Size = UDim2.new(0, 50, 0, 50)
-    IconButton.Position = UDim2.new(1, -70, 1, -70)
-    IconButton.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    IconButton.Image = "rbxassetid://6035047377" -- icon default Roblox circle
-    IconButton.ImageColor3 = Color3.fromRGB(255, 255, 255)
-    IconButton.Parent = ScreenGui
+    local frame = Instance.new("Frame", gui)
+    frame.Size = UDim2.new(0, 320, 0, 75)
+    frame.Position = UDim2.new(0.5, -160, 0, -90)
+    frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    frame.BorderSizePixel = 0
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
 
-    local UICorner = Instance.new("UICorner")
-    UICorner.CornerRadius = UDim.new(1, 0)
-    UICorner.Parent = IconButton
+    local icon = Instance.new("ImageLabel", frame)
+    icon.BackgroundTransparency = 1
+    icon.Size = UDim2.new(0, 32, 0, 32)
+    icon.Position = UDim2.new(0, 10, 0.5, -16)
+    icon.Image = nocticsLogoId
 
-    local Stroke = Instance.new("UIStroke")
-    Stroke.Thickness = 2
-    Stroke.Color = Color3.fromRGB(100, 100, 255)
-    Stroke.Parent = IconButton
+    local titleLabel = Instance.new("TextLabel", frame)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Size = UDim2.new(1, -60, 0, 25)
+    titleLabel.Position = UDim2.new(0, 50, 0, 8)
+    titleLabel.Font = Enum.Font.SourceSansBold
+    titleLabel.TextColor3 = Color3.new(1,1,1)
+    titleLabel.TextSize = 18
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    titleLabel.Text = title
 
-    -- 📋 Menu Frame
-    local MenuFrame = Instance.new("Frame")
-    MenuFrame.Size = UDim2.new(0, 260, 0, 210)
-    MenuFrame.Position = UDim2.new(1, -290, 1, -280)
-    MenuFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-    MenuFrame.Visible = false
-    MenuFrame.Parent = ScreenGui
+    local messageLabel = Instance.new("TextLabel", frame)
+    messageLabel.BackgroundTransparency = 1
+    messageLabel.Size = UDim2.new(1, -60, 0, 20)
+    messageLabel.Position = UDim2.new(0, 50, 0, 35)
+    messageLabel.Font = Enum.Font.SourceSans
+    messageLabel.TextColor3 = Color3.fromRGB(200,200,200)
+    messageLabel.TextSize = 14
+    messageLabel.TextXAlignment = Enum.TextXAlignment.Left
+    messageLabel.Text = message
 
-    local MenuCorner = Instance.new("UICorner")
-    MenuCorner.CornerRadius = UDim.new(0, 10)
-    MenuCorner.Parent = MenuFrame
+    local tweenService = game:GetService("TweenService")
+    local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    tweenService:Create(frame, tweenInfo, {Position = UDim2.new(0.5, -160, 0, 10)}):Play()
 
-    local MenuStroke = Instance.new("UIStroke")
-    MenuStroke.Thickness = 2
-    MenuStroke.Color = Color3.fromRGB(90, 90, 255)
-    MenuStroke.Parent = MenuFrame
-
-    -- Judul
-    local Title = Instance.new("TextLabel")
-    Title.Size = UDim2.new(1, 0, 0, 40)
-    Title.BackgroundTransparency = 1
-    Title.Text = "🌙 Noctics Menu"
-    Title.Font = Enum.Font.GothamBold
-    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Title.TextSize = 20
-    Title.Parent = MenuFrame
-
-    -- Tombol Aksi
-    local Button = Instance.new("TextButton")
-    Button.Size = UDim2.new(1, -40, 0, 35)
-    Button.Position = UDim2.new(0, 20, 0, 70)
-    Button.Text = "Kirim Notifikasi"
-    Button.Font = Enum.Font.Gotham
-    Button.TextSize = 16
-    Button.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Button.BackgroundColor3 = Color3.fromRGB(60, 60, 255)
-    Button.Parent = MenuFrame
-
-    local BtnCorner = Instance.new("UICorner")
-    BtnCorner.CornerRadius = UDim.new(0, 8)
-    BtnCorner.Parent = Button
-
-    Button.MouseButton1Click:Connect(function()
-        StarterGui:SetCore("SendNotification", {
-            Title = "Noctics",
-            Text = "Notifikasi berhasil dikirim!",
-            Duration = 3
-        })
-    end)
-
-    -- ✨ Animasi buka/tutup
-    local menuOpen = false
-    IconButton.MouseButton1Click:Connect(function()
-        menuOpen = not menuOpen
-        MenuFrame.Visible = menuOpen
-
-        local goal = {Position = menuOpen and UDim2.new(1, -290, 1, -280) or UDim2.new(1, -290, 1, -250)}
-        local tween = TweenService:Create(MenuFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), goal)
-        tween:Play()
-    end)
-
-    -- 🔁 Auto-recover protection
-    task.spawn(function()
-        while task.wait(2) do
-            if not ScreenGui or not ScreenGui.Parent then
-                warn("[Noctics] GUI hilang, membuat ulang...")
-                Noctics.run()
-                break
-            end
-        end
-    end)
-
-    -- 🔔 Notifikasi awal
-    StarterGui:SetCore("SendNotification", {
-        Title = "Noctics Safe Mode",
-        Text = "Klik ikon kanan bawah untuk membuka menu.",
-        Duration = 6
-    })
-
-    print("[Noctics] GUI berhasil dibuat.")
+    task.wait(2)
+    tweenService:Create(frame, tweenInfo, {Position = UDim2.new(0.5, -160, 0, -90)}):Play()
+    game:GetService("Debris"):AddItem(gui, 0.6)
 end
 
-return Noctics
+--// Daftar Game dan Script
+local supportedGames = {
+    [121864768012064] = "https://raw.githubusercontent.com/aerusanc/Noctics/main/scripts/fishit.lua",
+    [102234703920418] = "https://raw.githubusercontent.com/aerusanc/Noctics/main/scripts/mountdaun.lua",
+    [2693023319] = "https://raw.githubusercontent.com/aerusanc/Noctics/main/scripts/antartica.lua",
+}
+
+--// Deteksi Game
+local currentGame = game.PlaceId
+local scriptUrl = supportedGames[currentGame]
+
+if scriptUrl then
+    local success, gameInfo = pcall(function()
+        return game:GetService("MarketplaceService"):GetProductInfo(currentGame)
+    end)
+    local gameName = success and gameInfo.Name or "Game"
+
+    print("✅ Detected: " .. gameName)
+    showNotification("Noctics Hub", gameName .. " script loaded successfully!")
+
+    pcall(function()
+        loadstring(game:HttpGet(scriptUrl))()
+    end)
+else
+    warn("⚠️ Game not supported (ID: " .. currentGame .. ")")
+    showNotification("Noctics Hub", "This game is not supported.")
+end
