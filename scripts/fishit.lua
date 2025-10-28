@@ -18,8 +18,8 @@ if game.CoreGui:FindFirstChild("NocticsFishIt") then
 end
 
 --// GUI
-local gui = Instance.new("ScreenGui", game.CoreGui)
-gui.Name = "NocticsFishIt"
+local gui = Instance.new("ScreenGui")
+gui.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
 
 local mainFrame = Instance.new("Frame", gui)
 mainFrame.Size = UDim2.new(0, 300, 0, 200)
