@@ -1,63 +1,38 @@
+-- [[ NOCTICS - THE FORGE ULTRA CLEAN ]]
+-- Auto Mining + Priority + Minimize GUI
+-- No exploit-only functions, executor-safe for anything.
 
 do
-    -------------------------------------------------------
+    ----------------------------------------------------------
     -- SERVICES
-    -------------------------------------------------------
+    ----------------------------------------------------------
     local Players = game:GetService("Players")
-    local RunService = game:GetService("RunService")
     local TweenService = game:GetService("TweenService")
     local CoreGui = game:GetService("CoreGui")
 
     local player = Players.LocalPlayer
     local character = player.Character or player.CharacterAdded:Wait()
-    local hrp = character:WaitForChild("HumanoidRootPart")
-
-    -------------------------------------------------------
-    -- ERROR PATCH (BLOCK UIController NumberSequence BUG)
-    -------------------------------------------------------
-    local mt = getrawmetatable(game)
-    local old = mt.__namecall
-    setreadonly(mt, false)
-
-    mt.__namecall = function(self, ...)
-        local method = getnamecallmethod()
-
-        if tostring(self) == "Notifications" then
-            local args = {...}
-            if typeof(args[1]) == "NumberSequence" then
-                local last = -1
-                for _,kp in ipairs(args[1].Keypoints) do
-                    if kp.Time < last then
-                        return nil
-                    end
-                    last = kp.Time
-                end
-            end
-        end
-
-        return old(self, ...)
+    local function getHRP()
+        local ch = player.Character or player.CharacterAdded:Wait()
+        return ch:WaitForChild("HumanoidRootPart")
     end
 
-    setreadonly(mt, true)
-
-    -------------------------------------------------------
-    -- CONFIG
-    -------------------------------------------------------
+    ----------------------------------------------------------
+    -- SETTINGS
+    ----------------------------------------------------------
     local SETTINGS = {
-        AUTOSTOP_INVENTORY_FULL = true,
-        SAFE_DISTANCE = 100,
-        MODE = "UNDER", -- UNDER / OVER
-        MIN_Y = -20,
-        MAX_Y = 120,
+        MODE = "UNDER",      -- "UNDER" atau "OVER"
+        Y_UNDER = -20,       -- Y saat noclip bawah
+        Y_OVER = 120,        -- Y saat noclip atas
+        AUTO_STOP_WHEN_FULL = false, -- inventory check belum dihubungkan
     }
 
     local MiningEnabled = false
-    local killSwitch = false
-    local oreList = {}
+    local MiningThread = nil
 
-    -------------------------------------------------------
-    -- ORE PATHS
-    -------------------------------------------------------
+    ----------------------------------------------------------
+    -- ORE FOLDERS
+    ----------------------------------------------------------
     local oreFolders = {
         workspace:FindFirstChild("Ores"),
         workspace:FindFirstChild("SpawnedOres"),
@@ -67,162 +42,227 @@ do
         workspace:FindFirstChild("Interactable") and workspace.Interactable:FindFirstChild("Ore"),
     }
 
-    -------------------------------------------------------
-    -- SCAN ORES
-    -------------------------------------------------------
+    ----------------------------------------------------------
+    -- HELPERS
+    ----------------------------------------------------------
+    local function tween(obj, time, props)
+        TweenService:Create(obj, TweenInfo.new(time, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props):Play()
+    end
+
     local function scanOres()
-        local found = {}
-        for _,folder in ipairs(oreFolders) do
+        local list = {}
+        for _, folder in ipairs(oreFolders) do
             if folder and folder:IsA("Folder") then
-                for _,obj in ipairs(folder:GetChildren()) do
+                for _, obj in ipairs(folder:GetChildren()) do
                     if obj:IsA("Model") or obj:IsA("Part") then
-                        table.insert(found, obj)
+                        table.insert(list, obj)
                     end
                 end
             end
         end
-        return found
+        return list
     end
 
-    -------------------------------------------------------
-    -- PRIORITY SYSTEM
-    -------------------------------------------------------
     local function getPriority(ore)
         local name = ore.Name:lower()
-
         if string.find(name, "shiny") then return 1 end
         if string.find(name, "hard") then return 2 end
         if string.find(name, "crystal") then return 3 end
-
         return 4
     end
 
-    -------------------------------------------------------
-    -- PATHFIND + MOVE
-    -------------------------------------------------------
+    local function inventoryFull()
+        -- Diisi manual kalau kamu sudah tahu struktur inventory.
+        return false
+    end
+
     local function moveToOre(ore)
         if not ore or not ore:IsDescendantOf(workspace) then return end
-
+        local hrp = getHRP()
         local pos = ore:GetPivot().p
 
         if SETTINGS.MODE == "UNDER" then
-            hrp.CFrame = CFrame.new(pos.X, SETTINGS.MIN_Y, pos.Z)
+            hrp.CFrame = CFrame.new(pos.X, SETTINGS.Y_UNDER, pos.Z)
         elseif SETTINGS.MODE == "OVER" then
-            hrp.CFrame = CFrame.new(pos.X, SETTINGS.MAX_Y, pos.Z)
+            hrp.CFrame = CFrame.new(pos.X, SETTINGS.Y_OVER, pos.Z)
         end
 
-        task.wait(0.1)
-
+        task.wait(0.15)
         hrp.CFrame = ore:GetPivot() + Vector3.new(0, 3, 0)
     end
 
-    -------------------------------------------------------
-    -- INVENTORY CHECK (NEED CONFIG)
-    -------------------------------------------------------
-    local function inventoryFull()
-        return false -- kamu bisa isi sendiri jika tahu folder inventory
+    ----------------------------------------------------------
+    -- MINING LOOP
+    ----------------------------------------------------------
+    local function startMining()
+        if MiningThread then return end
+        MiningEnabled = true
+        MiningThread = task.spawn(function()
+            while MiningEnabled do
+                if SETTINGS.AUTO_STOP_WHEN_FULL and inventoryFull() then
+                    print("[Noctics] Inventory penuh, AutoMine stop.")
+                    MiningEnabled = false
+                    break
+                end
+
+                local ores = scanOres()
+                if #ores == 0 then
+                    print("[Noctics] Tidak ada ore, menunggu...")
+                    task.wait(1)
+                else
+                    table.sort(ores, function(a, b)
+                        return getPriority(a) < getPriority(b)
+                    end)
+
+                    local target = ores[1]
+                    print("[Noctics] Auto Mining...", target.Name)
+                    moveToOre(target)
+                    task.wait(0.4)
+                end
+            end
+            MiningThread = nil
+        end)
     end
 
-    -------------------------------------------------------
-    -- AI MINING ENGINE
-    -------------------------------------------------------
-    local function miningThread()
-        while MiningEnabled and not killSwitch do
-
-            if SETTINGS.AUTOSTOP_INVENTORY_FULL and inventoryFull() then
-                MiningEnabled = false
-                print("[NOCTICS] Inventory Penuh. AutoMine dihentikan.")
-                break
-            end
-
-            local ores = scanOres()
-            if #ores == 0 then
-                print("[NOCTICS] Tidak ada ore.")
-                task.wait(1)
-                continue
-            end
-
-            table.sort(ores, function(a,b)
-                return getPriority(a) < getPriority(b)
-            end)
-
-            local target = ores[1]
-
-            print("[NOCTICS] Target:", target.Name)
-            moveToOre(target)
-
-            task.wait(0.3)
-        end
+    local function stopMining()
+        MiningEnabled = false
     end
 
-    -------------------------------------------------------
-    -- GUI PRO (MINIMIZE)
-    -------------------------------------------------------
-    local ScreenGui = Instance.new("ScreenGui", CoreGui)
-    ScreenGui.Name = "NOCTICS_FORGE_ULTRA"
+    ----------------------------------------------------------
+    -- GUI
+    ----------------------------------------------------------
+    if CoreGui:FindFirstChild("NOCTICS_FORGE_CLEAN") then
+        CoreGui.NOCTICS_FORGE_CLEAN:Destroy()
+    end
 
-    local Main = Instance.new("Frame", ScreenGui)
-    Main.Size = UDim2.new(0, 300, 0, 260)
-    Main.Position = UDim2.new(0.1, 0, 0.3, 0)
-    Main.BackgroundColor3 = Color3.fromRGB(25,25,25)
-    Instance.new("UICorner", Main)
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "NOCTICS_FORGE_CLEAN"
+    gui.ResetOnSpawn = false
+    gui.Parent = CoreGui
 
-    local MinBtn = Instance.new("TextButton", Main)
-    MinBtn.Size = UDim2.new(0, 30, 0, 30)
-    MinBtn.Position = UDim2.new(1, -40, 0, 10)
-    MinBtn.Text = "-"
-    MinBtn.TextSize = 24
-    MinBtn.BackgroundColor3 = Color3.fromRGB(90,90,90)
-    Instance.new("UICorner", MinBtn)
+    local main = Instance.new("Frame", gui)
+    main.Size = UDim2.new(0, 300, 0, 220)
+    main.Position = UDim2.new(0.1, 0, 0.3, 0)
+    main.BackgroundColor3 = Color3.fromRGB(22,22,22)
+    Instance.new("UICorner", main)
 
-    local MiniIcon = Instance.new("TextButton", ScreenGui)
-    MiniIcon.Size = UDim2.new(0, 60, 0, 30)
-    MiniIcon.Position = UDim2.new(0.1, 0, 0.3, 0)
-    MiniIcon.Text = "Forge"
-    MiniIcon.Visible = false
+    -- drag
+    do
+        local dragging = false
+        local dragStart, startPos
 
-    MinBtn.MouseButton1Click:Connect(function()
-        Main.Visible = false
-        MiniIcon.Visible = true
+        main.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                dragging = true
+                dragStart = input.Position
+                startPos = main.Position
+            end
+        end)
+
+        main.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                dragging = false
+            end
+        end)
+
+        game:GetService("UserInputService").InputChanged:Connect(function(input)
+            if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+                local delta = input.Position - dragStart
+                main.Position = UDim2.new(
+                    startPos.X.Scale,
+                    startPos.X.Offset + delta.X,
+                    startPos.Y.Scale,
+                    startPos.Y.Offset + delta.Y
+                )
+            end
+        end)
+    end
+
+    local title = Instance.new("TextLabel", main)
+    title.Size = UDim2.new(1, -40, 0, 30)
+    title.Position = UDim2.new(0, 10, 0, 5)
+    title.BackgroundTransparency = 1
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 18
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.TextColor3 = Color3.fromRGB(255,255,255)
+    title.Text = "NOCTICS - FORGE"
+
+    local close = Instance.new("TextButton", main)
+    close.Size = UDim2.new(0, 24, 0, 24)
+    close.Position = UDim2.new(1, -30, 0, 8)
+    close.Text = "X"
+    close.Font = Enum.Font.GothamBold
+    close.TextSize = 16
+    close.TextColor3 = Color3.fromRGB(255,255,255)
+    close.BackgroundColor3 = Color3.fromRGB(200,50,50)
+    Instance.new("UICorner", close)
+
+    close.MouseButton1Click:Connect(function()
+        stopMining()
+        gui:Destroy()
     end)
 
-    MiniIcon.MouseButton1Click:Connect(function()
-        MiniIcon.Visible = false
-        Main.Visible = true
+    local miniButton = Instance.new("TextButton", gui)
+    miniButton.Size = UDim2.new(0, 80, 0, 28)
+    miniButton.Position = UDim2.new(0.1, 0, 0.3, 0)
+    miniButton.BackgroundColor3 = Color3.fromRGB(30,30,30)
+    miniButton.Text = "Forge"
+    miniButton.Font = Enum.Font.GothamBold
+    miniButton.TextSize = 14
+    miniButton.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", miniButton)
+    miniButton.Visible = false
+
+    local minBtn = Instance.new("TextButton", main)
+    minBtn.Size = UDim2.new(0, 24, 0, 24)
+    minBtn.Position = UDim2.new(1, -60, 0, 8)
+    minBtn.Text = "-"
+    minBtn.Font = Enum.Font.GothamBold
+    minBtn.TextSize = 18
+    minBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    minBtn.BackgroundColor3 = Color3.fromRGB(80,80,80)
+    Instance.new("UICorner", minBtn)
+
+    minBtn.MouseButton1Click:Connect(function()
+        main.Visible = false
+        miniButton.Visible = true
     end)
 
-    -------------------------------------------------------
-    -- BUTTON AUTOMINE
-    -------------------------------------------------------
-    local autoBtn = Instance.new("TextButton", Main)
-    autoBtn.Size = UDim2.new(0, 240, 0, 40)
-    autoBtn.Position = UDim2.new(0, 30, 0, 60)
-    autoBtn.Text = "AUTO MINE OFF"
-    autoBtn.BackgroundColor3 = Color3.fromRGB(80,0,0)
+    miniButton.MouseButton1Click:Connect(function()
+        main.Visible = true
+        miniButton.Visible = false
+    end)
+
+    local autoBtn = Instance.new("TextButton", main)
+    autoBtn.Size = UDim2.new(0, 260, 0, 40)
+    autoBtn.Position = UDim2.new(0, 20, 0, 50)
+    autoBtn.Text = "AUTO MINE: OFF"
+    autoBtn.Font = Enum.Font.GothamBold
+    autoBtn.TextSize = 16
+    autoBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    autoBtn.BackgroundColor3 = Color3.fromRGB(120,30,30)
     Instance.new("UICorner", autoBtn)
 
     autoBtn.MouseButton1Click:Connect(function()
-        MiningEnabled = not MiningEnabled
-
         if MiningEnabled then
-            autoBtn.Text = "AUTO MINE ON"
-            autoBtn.BackgroundColor3 = Color3.fromRGB(0,120,0)
-            killSwitch = false
-            task.spawn(miningThread)
+            stopMining()
+            autoBtn.Text = "AUTO MINE: OFF"
+            autoBtn.BackgroundColor3 = Color3.fromRGB(120,30,30)
         else
-            autoBtn.Text = "AUTO MINE OFF"
-            autoBtn.BackgroundColor3 = Color3.fromRGB(80,0,0)
-            killSwitch = true
+            startMining()
+            autoBtn.Text = "AUTO MINE: ON"
+            autoBtn.BackgroundColor3 = Color3.fromRGB(30,120,40)
         end
     end)
 
-    -------------------------------------------------------
-    -- REFRESH + MODE
-    -------------------------------------------------------
-    local modeBtn = Instance.new("TextButton", Main)
-    modeBtn.Size = UDim2.new(0, 240, 0, 40)
-    modeBtn.Position = UDim2.new(0, 30, 0, 120)
+    local modeBtn = Instance.new("TextButton", main)
+    modeBtn.Size = UDim2.new(0, 260, 0, 32)
+    modeBtn.Position = UDim2.new(0, 20, 0, 100)
     modeBtn.Text = "MODE: UNDERGROUND"
+    modeBtn.Font = Enum.Font.Gotham
+    modeBtn.TextSize = 14
+    modeBtn.TextColor3 = Color3.fromRGB(230,230,230)
     modeBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
     Instance.new("UICorner", modeBtn)
 
@@ -236,18 +276,21 @@ do
         end
     end)
 
-    -------------------------------------------------------
-    -- REFRESH BUTTON
-    -------------------------------------------------------
-    local refBtn = Instance.new("TextButton", Main)
-    refBtn.Size = UDim2.new(0, 240, 0, 40)
-    refBtn.Position = UDim2.new(0, 30, 0, 180)
-    refBtn.Text = "REFRESH ORES"
-    refBtn.BackgroundColor3 = Color3.fromRGB(40,40,90)
-    Instance.new("UICorner", refBtn)
+    local refreshBtn = Instance.new("TextButton", main)
+    refreshBtn.Size = UDim2.new(0, 260, 0, 32)
+    refreshBtn.Position = UDim2.new(0, 20, 0, 140)
+    refreshBtn.Text = "REFRESH ORES (LOG ONLY)"
+    refreshBtn.Font = Enum.Font.Gotham
+    refreshBtn.TextSize = 14
+    refreshBtn.TextColor3 = Color3.fromRGB(230,230,230)
+    refreshBtn.BackgroundColor3 = Color3.fromRGB(40,40,80)
+    Instance.new("UICorner", refreshBtn)
 
-    refBtn.MouseButton1Click:Connect(function()
-        oreList = scanOres()
-        print("[NOCTICS] Ores ditemukan:", #oreList)
+    refreshBtn.MouseButton1Click:Connect(function()
+        local ores = scanOres()
+        print("[Noctics] Jumlah ore terdeteksi:", #ores)
+        for i, o in ipairs(ores) do
+            print(i, o:GetFullName())
+        end
     end)
 end
