@@ -1,237 +1,256 @@
-
+-- [[ NOCTICS ULTRA PRO – FORGE AI MINING SYSTEM ]]
+-- Clean • Executor-Safe • Anti Error • Auto Priority • NoClip Pathfinding
+-- Made by RYU
 
 do
+    -------------------------------------------------------
+    -- SERVICES
+    -------------------------------------------------------
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
     local TweenService = game:GetService("TweenService")
-    local UserInputService = game:GetService("UserInputService")
     local CoreGui = game:GetService("CoreGui")
-    local Lighting = game:GetService("Lighting")
 
-    local FeatureStatus = {
-        AutoMine = false,
-        AutoForgePerfect = false,
-        SelectedOres = {},
+    local player = Players.LocalPlayer
+    local character = player.Character or player.CharacterAdded:Wait()
+    local hrp = character:WaitForChild("HumanoidRootPart")
+
+    -------------------------------------------------------
+    -- ERROR PATCH (BLOCK UIController NumberSequence BUG)
+    -------------------------------------------------------
+    local mt = getrawmetatable(game)
+    local old = mt.__namecall
+    setreadonly(mt, false)
+
+    mt.__namecall = function(self, ...)
+        local method = getnamecallmethod()
+
+        if tostring(self) == "Notifications" then
+            local args = {...}
+            if typeof(args[1]) == "NumberSequence" then
+                local last = -1
+                for _,kp in ipairs(args[1].Keypoints) do
+                    if kp.Time < last then
+                        return nil
+                    end
+                    last = kp.Time
+                end
+            end
+        end
+
+        return old(self, ...)
+    end
+
+    setreadonly(mt, true)
+
+    -------------------------------------------------------
+    -- CONFIG
+    -------------------------------------------------------
+    local SETTINGS = {
+        AUTOSTOP_INVENTORY_FULL = true,
+        SAFE_DISTANCE = 100,
+        MODE = "UNDER", -- UNDER / OVER
+        MIN_Y = -20,
+        MAX_Y = 120,
     }
 
-    local Threads = {}
+    local MiningEnabled = false
+    local killSwitch = false
+    local oreList = {}
 
-    local function tween(obj, time, props)
-        TweenService:Create(obj, TweenInfo.new(time, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props):Play()
-    end
+    -------------------------------------------------------
+    -- ORE PATHS
+    -------------------------------------------------------
+    local oreFolders = {
+        workspace:FindFirstChild("Ores"),
+        workspace:FindFirstChild("SpawnedOres"),
+        workspace:FindFirstChild("Resources") and workspace.Resources:FindFirstChild("Ore"),
+        workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Ores"),
+        workspace:FindFirstChild("World") and workspace.World:FindFirstChild("Ores"),
+        workspace:FindFirstChild("Interactable") and workspace.Interactable:FindFirstChild("Ore"),
+    }
 
-    local function ToggleAutoMine(state)
-        FeatureStatus.AutoMine = state
-        if state then
-            Threads.AutoMine = task.spawn(function()
-                while FeatureStatus.AutoMine do
-                    print("[Noctics] Auto Mining…")
-                    task.wait(1)
-                end
-            end)
-        else
-            if Threads.AutoMine then
-                task.cancel(Threads.AutoMine)
-            end
-        end
-    end
-
-    local function ToggleAutoForgePerfect(state)
-        FeatureStatus.AutoForgePerfect = state
-        print("[Noctics] Auto Forge Perfect =", state)
-    end
-
-    local function enableDragging(gui)
-        local dragging, dragStart, startPos
-        gui.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                dragging = true
-                dragStart = input.Position
-                startPos = gui.Position
-            end
-        end)
-        gui.InputEnded:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                dragging = false
-            end
-        end)
-        UserInputService.InputChanged:Connect(function(input)
-            if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-                local delta = input.Position - dragStart
-                gui.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-            end
-        end)
-    end
-
-    local function createShadow(parent)
-        local shadow = Instance.new("ImageLabel", parent)
-        shadow.AnchorPoint = Vector2.new(0.5, 0.5)
-        shadow.Position = UDim2.new(0.5, 0, 0.5, 8)
-        shadow.Size = UDim2.new(1, 40, 1, 40)
-        shadow.BackgroundTransparency = 1
-        shadow.Image = "rbxassetid://1316045217"
-        shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
-        shadow.ImageTransparency = 0.4
-        return shadow
-    end
-
-    local function createToggle(text)
-        local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(1, -20, 0, 50)
-        frame.BackgroundColor3 = Color3.fromRGB(33, 33, 33)
-        frame.BorderSizePixel = 0
-        Instance.new("UICorner", frame)
-
-        local label = Instance.new("TextLabel", frame)
-        label.BackgroundTransparency = 1
-        label.Size = UDim2.new(1, -70, 1, 0)
-        label.Position = UDim2.new(0, 10, 0, 0)
-        label.Font = Enum.Font.GothamBold
-        label.TextSize = 16
-        label.TextXAlignment = Enum.TextXAlignment.Left
-        label.TextColor3 = Color3.fromRGB(255, 255, 255)
-        label.Text = text
-
-        local button = Instance.new("Frame", frame)
-        button.Size = UDim2.new(0, 45, 0, 22)
-        button.Position = UDim2.new(1, -55, 0.5, -11)
-        button.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
-        Instance.new("UICorner", button)
-
-        local knob = Instance.new("Frame", button)
-        knob.Size = UDim2.new(0, 20, 0, 20)
-        knob.Position = UDim2.new(0, 1, 0, 1)
-        knob.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
-        Instance.new("UICorner", knob)
-
-        return frame, button, knob
-    end
-
-    local function buildGUI()
-        if CoreGui:FindFirstChild("NOCTICS_FORGE_PRO") then
-            CoreGui.NOCTICS_FORGE_PRO:Destroy()
-        end
-
-        local blur = Instance.new("BlurEffect")
-        blur.Size = 12
-        blur.Parent = Lighting
-
-        local gui = Instance.new("ScreenGui", CoreGui)
-        gui.Name = "NOCTICS_FORGE_PRO"
-        gui.ResetOnSpawn = false
-
-        local main = Instance.new("Frame", gui)
-        main.Size = UDim2.new(0, 560, 0, 335)
-        main.Position = UDim2.new(0.5, -280, 0.5, -170)
-        main.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-        Instance.new("UICorner", main)
-
-        createShadow(main)
-        enableDragging(main)
-
-        local header = Instance.new("Frame", main)
-        header.Size = UDim2.new(1, 0, 0, 55)
-        header.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-        Instance.new("UICorner", header)
-
-        local title = Instance.new("TextLabel", header)
-        title.Size = UDim2.new(1, -60, 1, 0)
-        title.Position = UDim2.new(0, 10, 0, 0)
-        title.Text = "NOCTICS - THE FORGE PRO"
-        title.TextColor3 = Color3.fromRGB(255, 255, 255)
-        title.Font = Enum.Font.GothamBold
-        title.TextSize = 20
-        title.BackgroundTransparency = 1
-        title.TextXAlignment = Enum.TextXAlignment.Left
-
-        local close = Instance.new("TextButton", header)
-        close.Size = UDim2.new(0, 42, 0, 42)
-        close.Position = UDim2.new(1, -50, 0.5, -21)
-        close.Text = "X"
-        close.TextColor3 = Color3.fromRGB(255, 255, 255)
-        close.Font = Enum.Font.GothamBold
-        close.TextSize = 22
-        close.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
-        Instance.new("UICorner", close)
-
-        close.MouseButton1Click:Connect(function()
-            blur:Destroy()
-            gui:Destroy()
-        end)
-
-        local sidebar = Instance.new("Frame", main)
-        sidebar.Size = UDim2.new(0, 150, 1, -55)
-        sidebar.Position = UDim2.new(0, 0, 0, 55)
-        sidebar.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-        Instance.new("UICorner", sidebar)
-
-        local categories = {"MINING", "FORGE", "UTILITY"}
-        local pages = {}
-        for i, name in ipairs(categories) do
-            local btn = Instance.new("TextButton", sidebar)
-            btn.Size = UDim2.new(1, -20, 0, 40)
-            btn.Position = UDim2.new(0, 10, 0, 10 + (i-1)*50)
-            btn.Text = name
-            btn.Font = Enum.Font.GothamBold
-            btn.TextSize = 16
-            btn.TextColor3 = Color3.fromRGB(255,255,255)
-            btn.BackgroundColor3 = Color3.fromRGB(38, 38, 38)
-            Instance.new("UICorner", btn)
-
-            local page = Instance.new("ScrollingFrame", main)
-            page.Size = UDim2.new(1, -160, 1, -65)
-            page.Position = UDim2.new(0, 155, 0, 60)
-            page.BackgroundTransparency = 1
-            page.CanvasSize = UDim2.new(0, 0, 0, 400)
-            page.Visible = false
-            pages[name] = page
-
-            btn.MouseButton1Click:Connect(function()
-                for _, p in pairs(pages) do p.Visible = false end
-                pages[name].Visible = true
-            end)
-
-            if i == 1 then
-                page.Visible = true
-            end
-        end
-
-        do  -- MINING page
-            local page = pages["MINING"]
-            local frame, toggleBtn, knob = createToggle("AUTO MINE")
-            frame.Parent = page
-
-            toggleBtn.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                    local new = not FeatureStatus.AutoMine
-                    ToggleAutoMine(new)
-                    if new then
-                        tween(knob, 0.2, {Position = UDim2.new(1, -21, 0, 1)})
-                        tween(toggleBtn, 0.2, {BackgroundColor3 = Color3.fromRGB(0,170,0)})
-                    else
-                        tween(knob, 0.2, {Position = UDim2.new(0, 1, 0, 1)})
-                        tween(toggleBtn, 0.2, {BackgroundColor3 = Color3.fromRGB(90,90,90)})
+    -------------------------------------------------------
+    -- SCAN ORES
+    -------------------------------------------------------
+    local function scanOres()
+        local found = {}
+        for _,folder in ipairs(oreFolders) do
+            if folder and folder:IsA("Folder") then
+                for _,obj in ipairs(folder:GetChildren()) do
+                    if obj:IsA("Model") or obj:IsA("Part") then
+                        table.insert(found, obj)
                     end
                 end
-            end)
+            end
+        end
+        return found
+    end
+
+    -------------------------------------------------------
+    -- PRIORITY SYSTEM
+    -------------------------------------------------------
+    local function getPriority(ore)
+        local name = ore.Name:lower()
+
+        if string.find(name, "shiny") then return 1 end
+        if string.find(name, "hard") then return 2 end
+        if string.find(name, "crystal") then return 3 end
+
+        return 4
+    end
+
+    -------------------------------------------------------
+    -- PATHFIND + MOVE
+    -------------------------------------------------------
+    local function moveToOre(ore)
+        if not ore or not ore:IsDescendantOf(workspace) then return end
+
+        local pos = ore:GetPivot().p
+
+        if SETTINGS.MODE == "UNDER" then
+            hrp.CFrame = CFrame.new(pos.X, SETTINGS.MIN_Y, pos.Z)
+        elseif SETTINGS.MODE == "OVER" then
+            hrp.CFrame = CFrame.new(pos.X, SETTINGS.MAX_Y, pos.Z)
         end
 
-        do  -- FORGE page
-            local page = pages["FORGE"]
-            local frame, toggleBtn, knob = createToggle("AUTO FORGE PERFECT")
-            frame.Parent = page
+        task.wait(0.1)
 
-            toggleBtn.MouseButton1Click:Connect(function()
-                local new = not FeatureStatus.AutoForgePerfect
-                ToggleAutoForgePerfect(new)
-                if new then
-                    tween(knob, 0.2, {Position = UDim2.new(1, -21, 0, 1)})
-                    tween(toggleBtn, 0.2, {BackgroundColor3 = Color3.fromRGB(0,170,0)})
-                else
-                    tween(knob, 0.2, {Position = UDim2.new(0, 1, 0, 1)})
-                    tween(toggleBtn, 0.2, {BackgroundColor3 = Color3.fromRGB(90,90,90)})
-                end
+        hrp.CFrame = ore:GetPivot() + Vector3.new(0, 3, 0)
+    end
+
+    -------------------------------------------------------
+    -- INVENTORY CHECK (NEED CONFIG)
+    -------------------------------------------------------
+    local function inventoryFull()
+        return false -- kamu bisa isi sendiri jika tahu folder inventory
+    end
+
+    -------------------------------------------------------
+    -- AI MINING ENGINE
+    -------------------------------------------------------
+    local function miningThread()
+        while MiningEnabled and not killSwitch do
+
+            if SETTINGS.AUTOSTOP_INVENTORY_FULL and inventoryFull() then
+                MiningEnabled = false
+                print("[NOCTICS] Inventory Penuh. AutoMine dihentikan.")
+                break
+            end
+
+            local ores = scanOres()
+            if #ores == 0 then
+                print("[NOCTICS] Tidak ada ore.")
+                task.wait(1)
+                continue
+            end
+
+            table.sort(ores, function(a,b)
+                return getPriority(a) < getPriority(b)
             end)
+
+            local target = ores[1]
+
+            print("[NOCTICS] Target:", target.Name)
+            moveToOre(target)
+
+            task.wait(0.3)
         end
     end
 
-    pcall(buildGUI)
+    -------------------------------------------------------
+    -- GUI PRO (MINIMIZE)
+    -------------------------------------------------------
+    local ScreenGui = Instance.new("ScreenGui", CoreGui)
+    ScreenGui.Name = "NOCTICS_FORGE_ULTRA"
+
+    local Main = Instance.new("Frame", ScreenGui)
+    Main.Size = UDim2.new(0, 300, 0, 260)
+    Main.Position = UDim2.new(0.1, 0, 0.3, 0)
+    Main.BackgroundColor3 = Color3.fromRGB(25,25,25)
+    Instance.new("UICorner", Main)
+
+    local MinBtn = Instance.new("TextButton", Main)
+    MinBtn.Size = UDim2.new(0, 30, 0, 30)
+    MinBtn.Position = UDim2.new(1, -40, 0, 10)
+    MinBtn.Text = "-"
+    MinBtn.TextSize = 24
+    MinBtn.BackgroundColor3 = Color3.fromRGB(90,90,90)
+    Instance.new("UICorner", MinBtn)
+
+    local MiniIcon = Instance.new("TextButton", ScreenGui)
+    MiniIcon.Size = UDim2.new(0, 60, 0, 30)
+    MiniIcon.Position = UDim2.new(0.1, 0, 0.3, 0)
+    MiniIcon.Text = "Forge"
+    MiniIcon.Visible = false
+
+    MinBtn.MouseButton1Click:Connect(function()
+        Main.Visible = false
+        MiniIcon.Visible = true
+    end)
+
+    MiniIcon.MouseButton1Click:Connect(function()
+        MiniIcon.Visible = false
+        Main.Visible = true
+    end)
+
+    -------------------------------------------------------
+    -- BUTTON AUTOMINE
+    -------------------------------------------------------
+    local autoBtn = Instance.new("TextButton", Main)
+    autoBtn.Size = UDim2.new(0, 240, 0, 40)
+    autoBtn.Position = UDim2.new(0, 30, 0, 60)
+    autoBtn.Text = "AUTO MINE OFF"
+    autoBtn.BackgroundColor3 = Color3.fromRGB(80,0,0)
+    Instance.new("UICorner", autoBtn)
+
+    autoBtn.MouseButton1Click:Connect(function()
+        MiningEnabled = not MiningEnabled
+
+        if MiningEnabled then
+            autoBtn.Text = "AUTO MINE ON"
+            autoBtn.BackgroundColor3 = Color3.fromRGB(0,120,0)
+            killSwitch = false
+            task.spawn(miningThread)
+        else
+            autoBtn.Text = "AUTO MINE OFF"
+            autoBtn.BackgroundColor3 = Color3.fromRGB(80,0,0)
+            killSwitch = true
+        end
+    end)
+
+    -------------------------------------------------------
+    -- REFRESH + MODE
+    -------------------------------------------------------
+    local modeBtn = Instance.new("TextButton", Main)
+    modeBtn.Size = UDim2.new(0, 240, 0, 40)
+    modeBtn.Position = UDim2.new(0, 30, 0, 120)
+    modeBtn.Text = "MODE: UNDERGROUND"
+    modeBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    Instance.new("UICorner", modeBtn)
+
+    modeBtn.MouseButton1Click:Connect(function()
+        if SETTINGS.MODE == "UNDER" then
+            SETTINGS.MODE = "OVER"
+            modeBtn.Text = "MODE: OVERGROUND"
+        else
+            SETTINGS.MODE = "UNDER"
+            modeBtn.Text = "MODE: UNDERGROUND"
+        end
+    end)
+
+    -------------------------------------------------------
+    -- REFRESH BUTTON
+    -------------------------------------------------------
+    local refBtn = Instance.new("TextButton", Main)
+    refBtn.Size = UDim2.new(0, 240, 0, 40)
+    refBtn.Position = UDim2.new(0, 30, 0, 180)
+    refBtn.Text = "REFRESH ORES"
+    refBtn.BackgroundColor3 = Color3.fromRGB(40,40,90)
+    Instance.new("UICorner", refBtn)
+
+    refBtn.MouseButton1Click:Connect(function()
+        oreList = scanOres()
+        print("[NOCTICS] Ores ditemukan:", #oreList)
+    end)
 end
