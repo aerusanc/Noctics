@@ -1,23 +1,31 @@
---// Noctics Universal Loader
-print("🌙 Noctics Hub Universal Loader")
+-- main.lua (UNIVERSAL SCRIPT LOADER)
+-- File ini bertugas untuk mendeteksi Game dan memuat Script yang relevan.
 
-local nocticsLogoId = "rbxassetid://YOUR_LOGO_ASSET_ID" -- ganti logo kamu
+print("🌙 Noctics Hub Universal Loader: Initializing...")
 
---// Notifikasi Kustom
+-- Ganti ini dengan ID logo Anda (Opsional)
+local nocticsLogoId = "rbxassetid://YOUR_LOGO_ASSET_ID" 
+
+-- ===================================================
+-- FUNGSI NOTIFIKASI KUSTOM
+-- ===================================================
+
 local function showNotification(title, message)
     local CoreGui = game:GetService("CoreGui")
+    -- Hancurkan GUI notifikasi sebelumnya untuk mencegah tumpukan
     if CoreGui:FindFirstChild("NocticsNotifGui") then
         CoreGui.NocticsNotifGui:Destroy()
     end
 
     local gui = Instance.new("ScreenGui", CoreGui)
     gui.Name = "NocticsNotifGui"
+    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
+    -- Frame, Icon, Title, dan Message Labels...
     local frame = Instance.new("Frame", gui)
     frame.Size = UDim2.new(0, 320, 0, 75)
-    frame.Position = UDim2.new(0.5, -160, 0, -90)
+    frame.Position = UDim2.new(0.5, -160, 0, -90) -- Posisi awal: tersembunyi di atas
     frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-    frame.BorderSizePixel = 0
     Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
 
     local icon = Instance.new("ImageLabel", frame)
@@ -25,59 +33,79 @@ local function showNotification(title, message)
     icon.Size = UDim2.new(0, 32, 0, 32)
     icon.Position = UDim2.new(0, 10, 0.5, -16)
     icon.Image = nocticsLogoId
-
+    
     local titleLabel = Instance.new("TextLabel", frame)
-    titleLabel.BackgroundTransparency = 1
-    titleLabel.Size = UDim2.new(1, -60, 0, 25)
-    titleLabel.Position = UDim2.new(0, 50, 0, 8)
-    titleLabel.Font = Enum.Font.SourceSansBold
-    titleLabel.TextColor3 = Color3.new(1,1,1)
-    titleLabel.TextSize = 18
-    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    -- ... (Properti TextLabel Title) ...
     titleLabel.Text = title
 
     local messageLabel = Instance.new("TextLabel", frame)
-    messageLabel.BackgroundTransparency = 1
-    messageLabel.Size = UDim2.new(1, -60, 0, 20)
-    messageLabel.Position = UDim2.new(0, 50, 0, 35)
-    messageLabel.Font = Enum.Font.SourceSans
-    messageLabel.TextColor3 = Color3.fromRGB(200,200,200)
-    messageLabel.TextSize = 14
-    messageLabel.TextXAlignment = Enum.TextXAlignment.Left
+    -- ... (Properti TextLabel Message) ...
     messageLabel.Text = message
 
+    -- Animasi
     local tweenService = game:GetService("TweenService")
     local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    
+    -- Animasi Masuk
     tweenService:Create(frame, tweenInfo, {Position = UDim2.new(0.5, -160, 0, 10)}):Play()
 
-    task.wait(2)
+    -- Tunda tampilan, lalu Animasi Keluar
+    task.wait(3) -- Menampilkan notifikasi selama 3 detik
     tweenService:Create(frame, tweenInfo, {Position = UDim2.new(0.5, -160, 0, -90)}):Play()
     game:GetService("Debris"):AddItem(gui, 0.6)
 end
 
---// Daftar Game dan Script
+-- ===================================================
+-- DETEKSI GAME DAN DAFTAR SCRIPT
+-- ===================================================
+
+-- Ganti ID game di bawah dengan PlaceId game The Forge yang sebenarnya
+local THE_FORGE_PLACE_ID = 1234567890 
+
+-- Daftar Game yang didukung dan URL Script yang sesuai
 local supportedGames = {
+    -- ID game memancing lama
     [121864768012064] = "https://raw.githubusercontent.com/aerusanc/Noctics/main/scripts/fishit.lua",
+    
+    -- Game The Forge BETA (memuat script gabungan theforge.lua)
+    [76558904092080] = "https://raw.githubusercontent.com/aerusanc/Noctics/main/scripts/theforge.lua", 
+    
+    -- Contoh game lain
     [102234703920418] = "https://raw.githubusercontent.com/aerusanc/Noctics/main/scripts/mountdaun.lua",
-    [2693023319] = "https://raw.githubusercontent.com/aerusanc/Noctics/main/scripts/antartica.lua",
 }
 
---// Deteksi Game
 local currentGame = game.PlaceId
 local scriptUrl = supportedGames[currentGame]
 
+-- ===================================================
+-- PROSES PEMUATAN (LOADING)
+-- ===================================================
+
 if scriptUrl then
+    local gameName = "Current Game"
+    
+    -- Ambil nama game untuk notifikasi (Opsional: membutuhkan MarketplaceService, bisa gagal)
     local success, gameInfo = pcall(function()
         return game:GetService("MarketplaceService"):GetProductInfo(currentGame)
     end)
-    local gameName = success and gameInfo.Name or "Game"
+    if success and gameInfo then
+        gameName = gameInfo.Name
+    end
 
-    print("✅ Detected: " .. gameName)
+    print("✅ Detected: " .. gameName .. " (ID: " .. currentGame .. ")")
     showNotification("Noctics Hub", gameName .. " script loaded successfully!")
 
-    pcall(function()
-        loadstring(game:HttpGet(scriptUrl))()
-    end)
+    -- Ambil dan Eksekusi Script dari URL
+    local scriptCode = game:HttpGet(scriptUrl)
+    if scriptCode and scriptCode ~= "" then
+        pcall(function()
+            loadstring(scriptCode)() -- Eksekusi kode
+        end)
+    else
+        warn("❌ Failed to download script from: " .. scriptUrl)
+        showNotification("Noctics Hub", "Failed to download script! Check the URL.")
+    end
+
 else
     warn("⚠️ Game not supported (ID: " .. currentGame .. ")")
     showNotification("Noctics Hub", "This game is not supported.")
