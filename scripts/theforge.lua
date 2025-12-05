@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 -- theforge.lua (FINAL GABUNGAN: Logika + UI)
 -- Skrip ini dirancang untuk dieksekusi oleh loadstring, oleh karena itu semua fungsi dideklarasikan secara lokal dan terstruktur di awal.
 
@@ -264,3 +265,11 @@ end
 
 -- Panggil fungsi utama untuk memulai pembangunan GUI dan fitur
 pcall(buildGUI)
+=======
+-- theforge.lua (Uji Coba)
+pcall(function() 
+    -- Ini harusnya aman dieksekusi
+    local players = game:GetService("Players") 
+    print("Skrip diunduh dan layanan dapat diakses.")
+end)
+>>>>>>> 3eac1d6bba4d3da66fb92de6f08313a2d5efe10a
