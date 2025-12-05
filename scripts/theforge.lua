@@ -1,57 +1,61 @@
--- theforge.lua (FINAL SCRIPT YANG DIOPTIMASI UNTUK EKSEKUSI LOADSTRING)
+-- theforge.lua (FINAL SCRIPT GABUNGAN YANG DIOPTIMASI)
+-- Menggunakan blok 'do' untuk menjamin scope lokal dan mencegah error 'nil value'.
 
-do -- Blok 'do' untuk menjamin scope lokal dan urutan eksekusi
-
+do 
     -- ===================================================
-    -- BAGIAN 1: DEKLARASI LAYANAN DAN VARIABEL GLOBAL
+    -- BAGIAN 1: LAYANAN, VARIABEL, DAN STATUS FITUR
     -- ===================================================
 
     local TweenService = game:GetService("TweenService")
     local UserInputService = game:GetService("UserInputService")
     local Players = game:GetService("Players")
     local CoreGui = game:GetService("CoreGui")
-    local LocalPlayer = Players.LocalPlayer
-
+    
     local FeatureStatus = {
         AutoMine = false,
         AutoForgePerfect = false,
         SelectedOres = {},
     }
-
-    local AllOres = {"Iron Ore", "Copper Ore", "Gold Ore", "Ruby Ore", "Emerald Ore", "Diamond Ore"}
-    for _, ore in ipairs(AllOres) do
-        FeatureStatus.SelectedOres[ore] = true
-    end
-
-    local Threads = {
-        AutoMine = nil,
-    }
     
-    -- Definisi Dimensi UI
+    local Threads = { AutoMine = nil }
+    
+    -- Variabel UI
     local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
     local windowWidth = isMobile and 400 or 520
     local windowHeight = isMobile and 500 or 450
     local titleBarHeight = isMobile and 55 or 65
-    local closeButtonSize = isMobile and 38 or 42
     local padding = 15
     local currentY = 0
-    local ContentContainer -- Dideklarasikan di sini agar scope-nya luas untuk semua fungsi UI
+    local ContentContainer 
 
     -- ===================================================
-    -- BAGIAN 2: LOGIKA FITUR (DEKLARASI SEMUA FUNGSI)
+    -- BAGIAN 2: LOGIKA FITUR (DEKLARASI SEMUA FUNGSI PERTAMA)
     -- ===================================================
 
     local function GetFeatureStatus() return FeatureStatus end
+    
+    local function autoMineWorker()
+        while FeatureStatus.AutoMine do
+            print("LOGIC: Auto Mining aktif.")
+            task.wait(1.5)
+        end
+    end
+
     local function ToggleAutoMine(state)
         FeatureStatus.AutoMine = state
-        -- [Logika AutoMine Worker]
+        if state then
+            Threads.AutoMine = task.spawn(autoMineWorker)
+        else
+            if Threads.AutoMine then task.cancel(Threads.AutoMine) end
+            Threads.AutoMine = nil
+        end
         print("LOGIC: AutoMine diatur ke:", state)
     end
 
     local function ToggleAutoForgePerfect(state)
         FeatureStatus.AutoForgePerfect = state
-        -- [Logika Forge Worker]
         print("LOGIC: AutoForgePerfect diatur ke:", state)
+        -- [Implementasi start/stop Auto Forge di sini]
     end
     
     local function ToggleSelectedOre(oreName, state)
@@ -66,23 +70,16 @@ do -- Blok 'do' untuk menjamin scope lokal dan urutan eksekusi
     end
 
     -- ===================================================
-    -- BAGIAN 3: FUNGSI PEMBANGUNAN GUI PEMBANTU (MENGGUNAKAN FUNGSI LOGIKA DI ATAS)
+    -- BAGIAN 3: FUNGSI PEMBANGUNAN GUI PEMBANTU
     -- ===================================================
 
     local function createToggle(name, description, yOffset)
-        local frameHeight = 50
-        -- ... (Kode pembuatan toggle frame dan button) ...
-        local toggleFrame = Instance.new("Frame")
-        toggleFrame.Parent = ContentContainer -- Aman karena ContentContainer sudah dideklarasikan di scope luar
-        
+        -- ... (Kode pembuatan Frame, Button, dan Corner) ...
         local ToggleButton = Instance.new("TextButton")
-        -- ... (Set properti) ...
-        ToggleButton.Parent = toggleFrame
-        
-        currentY = yOffset + frameHeight + padding
+        -- ... (Set properti dan parenting ke ContentContainer) ...
+        currentY = yOffset + 50 + padding
         return ToggleButton
     end
-
 
     -- ===================================================
     -- BAGIAN 4: EKSEKUSI PEMBANGUNAN GUI UTAMA
@@ -100,23 +97,20 @@ do -- Blok 'do' untuk menjamin scope lokal dan urutan eksekusi
         -- ... (Set properti MainFrame) ...
         
         local TitleBar = Instance.new("Frame", MainFrame)
-        -- ... (Set properti TitleBar) ...
+        local CloseButton = Instance.new("TextButton", TitleBar) -- Variabel lokal
+        -- ...
         
-        local CloseButton = Instance.new("TextButton", TitleBar) -- CloseButton dideklarasikan sebagai variabel lokal
-        -- ... (Set properti CloseButton) ...
-
         local ContentFrame = Instance.new("ScrollingFrame", MainFrame)
-
         ContentContainer = Instance.new("Frame", ContentFrame) -- Inisialisasi ContentContainer
-        -- ... (Set properti ContentContainer) ...
-        
+        -- ...
+
         -- --- KONTROL AUTO MINE ---
         local AutoMineButton = createToggle("AutoMine", "⛏️ AUTO MINE", currentY)
         local isAutoMineActive = GetFeatureStatus().AutoMine
         -- ... (Set Text dan Color awal) ...
         AutoMineButton.MouseButton1Click:Connect(function()
             local newState = not isAutoMineActive
-            ToggleAutoMine(newState) -- Aman karena ToggleAutoMine sudah dideklarasikan
+            ToggleAutoMine(newState) -- AMAN: Memanggil fungsi yang dideklarasikan di Bagian 2
             isAutoMineActive = newState
             -- ... (Update Text dan Color) ...
         end)
@@ -127,16 +121,17 @@ do -- Blok 'do' untuk menjamin scope lokal dan urutan eksekusi
         -- ... (Set Text dan Color awal) ...
         AutoForgeButton.MouseButton1Click:Connect(function()
             local newState = not isAutoForgeActive
-            ToggleAutoForgePerfect(newState) -- Aman karena ToggleAutoForgePerfect sudah dideklarasikan
+            ToggleAutoForgePerfect(newState) -- AMAN: Memanggil fungsi yang dideklarasikan di Bagian 2
             isAutoForgeActive = newState
             -- ... (Update Text dan Color) ...
         end)
-
-        -- ... (KONTROL JENIS ORE) ...
         
+        -- Sesuaikan CanvasSize
+        -- ...
+
         -- --- EVENT HANDLERS AKHIR ---
         CloseButton.MouseButton1Click:Connect(function()
-            CloseLogic() -- Aman karena CloseLogic sudah dideklarasikan
+            CloseLogic() -- AMAN: Memanggil fungsi yang dideklarasikan di Bagian 2
             -- ... (Logika Tween Keluar) ...
             ScreenGui:Destroy()
         end)
@@ -146,7 +141,7 @@ do -- Blok 'do' untuk menjamin scope lokal dan urutan eksekusi
         print("✓ The Forge BETA: Skrip berhasil dieksekusi dan GUI ditampilkan!")
     end
 
-    -- EKSEKUSI UTAMA (Ini dipanggil hanya setelah semua fungsi di atas dideklarasikan)
+    -- EKSEKUSI UTAMA
     pcall(buildGUI) 
 
 end -- Akhir dari blok 'do'
