@@ -1,2 +1,6 @@
-print("TEST: Skrip The Forge berhasil diunduh dan dieksekusi!")
-task.wait(5)
+-- theforge.lua (Uji Coba)
+pcall(function() 
+    -- Ini harusnya aman dieksekusi
+    local players = game:GetService("Players") 
+    print("Skrip diunduh dan layanan dapat diakses.")
+end)
