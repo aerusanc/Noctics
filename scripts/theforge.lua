@@ -1,6 +1,3 @@
--- [[ NOCTICS ULTRA PRO – FORGE AI MINING SYSTEM ]]
--- Clean • Executor-Safe • Anti Error • Auto Priority • NoClip Pathfinding
--- Made by RYU
 
 do
     -------------------------------------------------------
