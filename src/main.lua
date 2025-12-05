@@ -60,7 +60,7 @@ end
 -- ===================================================
 
 -- Ganti ID game di bawah dengan PlaceId game The Forge yang sebenarnya
-local THE_FORGE_PLACE_ID = 1234567890 
+local THE_FORGE_PLACE_ID = 76558904092080
 
 -- Daftar Game yang didukung dan URL Script yang sesuai
 local supportedGames = {
@@ -68,7 +68,7 @@ local supportedGames = {
     [121864768012064] = "https://raw.githubusercontent.com/aerusanc/Noctics/main/scripts/fishit.lua",
     
     -- Game The Forge BETA (memuat script gabungan theforge.lua)
-    [76558904092080] = "https://raw.githubusercontent.com/aerusanc/Noctics/main/scripts/theforge.lua", 
+    [THE_FORGE_PLACE_ID] = "https://raw.githubusercontent.com/aerusanc/Noctics/main/scripts/theforge.lua", 
     
     -- Contoh game lain
     [102234703920418] = "https://raw.githubusercontent.com/aerusanc/Noctics/main/scripts/mountdaun.lua",
