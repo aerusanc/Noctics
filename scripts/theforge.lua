@@ -1,6 +1,4 @@
--- [[ NOCTICS - THE FORGE BETA (PRO VERSION) ]]
--- Premium UI * Smooth Tween * Blur * Shadow * Category Panel * Clean Logic
--- Made by RYU - Optimized & Executor-Safe
+
 
 do
     local TweenService = game:GetService("TweenService")
