@@ -1,219 +1,310 @@
--- THE FORGE BETA — FIXED & CLEAN VERSION
--- Noctics Hub by RYU
--- Fully sanitized: no nil-call, no nil-parent, no GUI crash
+-- [[ NOCTICS — THE FORGE BETA (PRO VERSION) ]]
+-- Premium UI • Smooth Tween • Blur • Shadow • Categori Panel • Clean Logic
+-- Made by RYU ✦ Optimized & Executor-Safe
 
 do
-    ----------------------------
-    -- SERVICES & VARIABLES
-    ----------------------------
+    ----------------------------------------------------------
+    -- SERVICES
+    ----------------------------------------------------------
     local TweenService = game:GetService("TweenService")
     local UserInputService = game:GetService("UserInputService")
-    local Players = game:GetService("Players")
     local CoreGui = game:GetService("CoreGui")
+    local Lighting = game:GetService("Lighting")
 
+    ----------------------------------------------------------
+    -- DATA
+    ----------------------------------------------------------
     local FeatureStatus = {
         AutoMine = false,
         AutoForgePerfect = false,
         SelectedOres = {},
     }
 
-    local Threads = { AutoMine = nil }
+    local Threads = {}
 
-    local isMobile = UserInputService.TouchEnabled
-    local windowWidth = isMobile and 400 or 520
-    local windowHeight = isMobile and 500 or 450
-    local padding = 12
-    local currentY = 0
-
-    -- akan di set setelah GUI selesai dibuat
-    local ContentContainer = nil  
-
-
-    ----------------------------
-    -- LOGIC FUNCTIONS
-    ----------------------------
-
-    local function GetFeatureStatus()
-        return FeatureStatus
+    ----------------------------------------------------------
+    -- HELPER: TWEEN
+    ----------------------------------------------------------
+    local function tween(obj, time, props)
+        TweenService:Create(obj, TweenInfo.new(time, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props):Play()
     end
 
-    local function autoMineWorker()
-        while FeatureStatus.AutoMine do
-            print("[Noctics] Auto Mine aktif...")
-            task.wait(1.2)
-        end
-    end
 
+    ----------------------------------------------------------
+    -- FEATURE LOGIC
+    ----------------------------------------------------------
     local function ToggleAutoMine(state)
         FeatureStatus.AutoMine = state
 
         if state then
-            Threads.AutoMine = task.spawn(autoMineWorker)
+            Threads.AutoMine = task.spawn(function()
+                while FeatureStatus.AutoMine do
+                    print("[Noctics] Auto Mining…")
+                    task.wait(1)
+                end
+            end)
         else
             if Threads.AutoMine then
                 task.cancel(Threads.AutoMine)
             end
-            Threads.AutoMine = nil
         end
-
-        print("[Noctics] AutoMine =", state)
     end
 
     local function ToggleAutoForgePerfect(state)
         FeatureStatus.AutoForgePerfect = state
-        print("[Noctics] AutoForgePerfect =", state)
-    end
-
-    local function ToggleSelectedOre(oreName, state)
-        FeatureStatus.SelectedOres[oreName] = state
-        print("[Noctics] Ore", oreName, "=", state)
-    end
-
-    local function CloseLogic()
-        ToggleAutoMine(false)
-        ToggleAutoForgePerfect(false)
-        print("[Noctics] Semua fitur dimatikan.")
+        print("[Noctics] Auto Forge Perfect =", state)
     end
 
 
+    ----------------------------------------------------------
+    -- DRAGGABLE WINDOW
+    ----------------------------------------------------------
+    local function enableDragging(gui)
+        local dragging, dragStart, startPos
 
-    ----------------------------
-    -- UI HELPERS
-    ----------------------------
+        gui.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                dragging = true
+                dragStart = input.Position
+                startPos = gui.Position
+            end
+        end)
 
-    local function createToggle(label, description)
-        -- FRAME WRAPPER
-        local Wrap = Instance.new("Frame")
-        Wrap.BackgroundTransparency = 1
-        Wrap.Size = UDim2.new(1, -20, 0, 55)
-        Wrap.Position = UDim2.new(0, 10, 0, currentY)
-        Wrap.Parent = ContentContainer
+        gui.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                dragging = false
+            end
+        end)
 
-        -- BUTTON
-        local Button = Instance.new("TextButton")
-        Button.Size = UDim2.new(1, -20, 0, 45)
-        Button.Position = UDim2.new(0, 10, 0, 5)
-        Button.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-        Button.TextColor3 = Color3.fromRGB(255, 255, 255)
-        Button.Font = Enum.Font.GothamBold
-        Button.TextSize = 18
-        Button.Text = description
-        Button.Parent = Wrap
-
-        Instance.new("UICorner", Button).CornerRadius = UDim.new(0, 8)
-
-        currentY = currentY + 60
-        return Button
+        UserInputService.InputChanged:Connect(function(input)
+            if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+                local delta = input.Position - dragStart
+                gui.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            end
+        end)
     end
 
 
+    ----------------------------------------------------------
+    -- UI COMPONENTS
+    ----------------------------------------------------------
+    local function createShadow(parent)
+        local shadow = Instance.new("ImageLabel", parent)
+        shadow.AnchorPoint = Vector2.new(0.5, 0.5)
+        shadow.Position = UDim2.new(0.5, 0, 0.5, 8)
+        shadow.Size = UDim2.new(1, 40, 1, 40)
+        shadow.BackgroundTransparency = 1
+        shadow.Image = "rbxassetid://1316045217"
+        shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+        shadow.ImageTransparency = 0.4
+        return shadow
+    end
 
-    ----------------------------
-    -- BUILD GUI
-    ----------------------------
+    local function createToggle(text)
+        local frame = Instance.new("Frame")
+        frame.Size = UDim2.new(1, -20, 0, 50)
+        frame.BackgroundColor3 = Color3.fromRGB(33, 33, 33)
+        frame.BorderSizePixel = 0
+        Instance.new("UICorner", frame)
 
+        local label = Instance.new("TextLabel", frame)
+        label.BackgroundTransparency = 1
+        label.Size = UDim2.new(1, -70, 1, 0)
+        label.Position = UDim2.new(0, 10, 0, 0)
+        label.Font = Enum.Font.GothamBold
+        label.TextSize = 16
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.TextColor3 = Color3.fromRGB(255, 255, 255)
+        label.Text = text
+
+        local button = Instance.new("Frame", frame)
+        button.Size = UDim2.new(0, 45, 0, 22)
+        button.Position = UDim2.new(1, -55, 0.5, -11)
+        button.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
+        Instance.new("UICorner", button)
+
+        local knob = Instance.new("Frame", button)
+        knob.Size = UDim2.new(0, 20, 0, 20)
+        knob.Position = UDim2.new(0, 1, 0, 1)
+        knob.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+        Instance.new("UICorner", knob)
+
+        return frame, button, knob
+    end
+
+
+    ----------------------------------------------------------
+    -- BUILD UI
+    ----------------------------------------------------------
     local function buildGUI()
-        if CoreGui:FindFirstChild("TheForgeBETA") then
-            CoreGui.TheForgeBETA:Destroy()
+        if CoreGui:FindFirstChild("NOCTICS_FORGE_PRO") then
+            CoreGui.NOCTICS_FORGE_PRO:Destroy()
         end
 
-        local ScreenGui = Instance.new("ScreenGui")
-        ScreenGui.Name = "TheForgeBETA"
-        ScreenGui.Parent = CoreGui
+        -- Blur Background
+        local blur = Instance.new("BlurEffect")
+        blur.Size = 12
+        blur.Parent = Lighting
 
-        -- MAIN FRAME
-        local Main = Instance.new("Frame")
-        Main.Size = UDim2.new(0, windowWidth, 0, windowHeight)
-        Main.Position = UDim2.new(0.5, -windowWidth/2, 0.5, -windowHeight/2)
-        Main.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-        Main.Parent = ScreenGui
+        local gui = Instance.new("ScreenGui", CoreGui)
+        gui.Name = "NOCTICS_FORGE_PRO"
+        gui.ResetOnSpawn = false
 
-        Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
+        -- Main Window
+        local main = Instance.new("Frame", gui)
+        main.Size = UDim2.new(0, 560, 0, 335)
+        main.Position = UDim2.new(0.5, -280, 0.5, -170)
+        main.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+        Instance.new("UICorner", main)
 
-        -- TITLEBAR
-        local TitleBar = Instance.new("Frame")
-        TitleBar.Size = UDim2.new(1, 0, 0, 50)
-        TitleBar.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-        TitleBar.Parent = Main
-        Instance.new("UICorner", TitleBar).CornerRadius = UDim.new(0, 12)
+        createShadow(main)
+        enableDragging(main)
 
-        local Title = Instance.new("TextLabel")
-        Title.Size = UDim2.new(1, -50, 1, 0)
-        Title.Position = UDim2.new(0, 15, 0, 0)
-        Title.BackgroundTransparency = 1
-        Title.Text = "NOCTICS — THE FORGE"
-        Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-        Title.Font = Enum.Font.GothamBold
-        Title.TextSize = 20
-        Title.TextXAlignment = Enum.TextXAlignment.Left
-        Title.Parent = TitleBar
+        -- Header
+        local header = Instance.new("Frame", main)
+        header.Size = UDim2.new(1, 0, 0, 55)
+        header.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+        Instance.new("UICorner", header)
 
-        -- CLOSE BUTTON
-        local CloseButton = Instance.new("TextButton")
-        CloseButton.Size = UDim2.new(0, 40, 0, 40)
-        CloseButton.Position = UDim2.new(1, -45, 0, 5)
-        CloseButton.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
-        CloseButton.Text = "X"
-        CloseButton.Font = Enum.Font.GothamBold
-        CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-        CloseButton.TextSize = 18
-        CloseButton.Parent = TitleBar
-        Instance.new("UICorner", CloseButton)
-
-        -- CONTENT
-        local Scroll = Instance.new("ScrollingFrame")
-        Scroll.Size = UDim2.new(1, 0, 1, -50)
-        Scroll.Position = UDim2.new(0, 0, 0, 50)
-        Scroll.BackgroundTransparency = 1
-        Scroll.CanvasSize = UDim2.new(0, 0, 0, 600)
-        Scroll.ScrollBarThickness = 6
-        Scroll.Parent = Main
-
-        ContentContainer = Instance.new("Frame")
-        ContentContainer.BackgroundTransparency = 1
-        ContentContainer.Size = UDim2.new(1, 0, 0, 600)
-        ContentContainer.Parent = Scroll
+        local title = Instance.new("TextLabel", header)
+        title.Size = UDim2.new(1, -60, 1, 0)
+        title.Position = UDim2.new(0, 10, 0, 0)
+        title.Text = "NOCTICS — THE FORGE PRO"
+        title.TextColor3 = Color3.fromRGB(255, 255, 255)
+        title.Font = Enum.Font.GothamBold
+        title.TextSize = 20
+        title.BackgroundTransparency = 1
+        title.TextXAlignment = Enum.TextXAlignment.Left
 
 
-        ----------------------------
-        -- TOGGLES
-        ----------------------------
+        -- Close Button
+        local close = Instance.new("TextButton", header)
+        close.Size = UDim2.new(0, 42, 0, 42)
+        close.Position = UDim2.new(1, -50, 0.5, -21)
+        close.Text = "✕"
+        close.TextColor3 = Color3.fromRGB(255, 255, 255)
+        close.Font = Enum.Font.GothamBold
+        close.TextSize = 22
+        close.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
+        Instance.new("UICorner", close)
 
-        -- AutoMine
-        local AutoMineBtn = createToggle("AutoMine", "⛏️ AUTO MINE")
-        AutoMineBtn.MouseButton1Click:Connect(function()
-            local newState = not FeatureStatus.AutoMine
-            ToggleAutoMine(newState)
-            AutoMineBtn.BackgroundColor3 = newState
-                and Color3.fromRGB(0, 170, 0)
-                or Color3.fromRGB(35, 35, 35)
-        end)
-
-        -- AutoForgePerfect
-        local ForgeBtn = createToggle("Forge", "⚡ AUTO FORGE PERFECT")
-        ForgeBtn.MouseButton1Click:Connect(function()
-            local newState = not FeatureStatus.AutoForgePerfect
-            ToggleAutoForgePerfect(newState)
-            ForgeBtn.BackgroundColor3 = newState
-                and Color3.fromRGB(0, 170, 0)
-                or Color3.fromRGB(35, 35, 35)
+        close.MouseButton1Click:Connect(function()
+            blur:Destroy()
+            gui:Destroy()
         end)
 
 
-        ----------------------------
-        -- CLOSE BUTTON
-        ----------------------------
+        ------------------------------------------------------
+        -- SIDE CATEGORY BAR
+        ------------------------------------------------------
+        local sidebar = Instance.new("Frame", main)
+        sidebar.Size = UDim2.new(0, 150, 1, -55)
+        sidebar.Position = UDim2.new(0, 0, 0, 55)
+        sidebar.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+        Instance.new("UICorner", sidebar)
 
-        CloseButton.MouseButton1Click:Connect(function()
-            CloseLogic()
-            ScreenGui:Destroy()
-        end)
+        local categories = {
+            "MINING",
+            "FORGE",
+            "UTILITY",
+        }
 
-        print("✓ Forge GUI Loaded.")
+        local pages = {}
+
+        local function createPage()
+            local page = Instance.new("ScrollingFrame", main)
+            page.Size = UDim2.new(1, -160, 1, -65)
+            page.Position = UDim2.new(0, 155, 0, 60)
+            page.BackgroundTransparency = 1
+            page.CanvasSize = UDim2.new(0, 0, 0, 500)
+            page.Visible = false
+            return page
+        end
+
+
+        ------------------------------------------------------
+        -- CATEGORY BUTTONS
+        ------------------------------------------------------
+        local y = 10
+        for _, name in ipairs(categories) do
+            local btn = Instance.new("TextButton", sidebar)
+            btn.Size = UDim2.new(1, -20, 0, 40)
+            btn.Position = UDim2.new(0, 10, 0, y)
+            btn.Text = name
+            btn.Font = Enum.Font.GothamBold
+            btn.TextSize = 16
+            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            btn.BackgroundColor3 = Color3.fromRGB(38, 38, 38)
+            Instance.new("UICorner", btn)
+
+            y = y + 50
+
+            pages[name] = createPage()
+
+            btn.MouseButton1Click:Connect(function()
+                for _, p in pairs(pages) do p.Visible = false end
+                pages[name].Visible = true
+            end)
+        end
+
+        pages["MINING"].Visible = true
+
+        ------------------------------------------------------
+        -- MINING PAGE CONTENT
+        ------------------------------------------------------
+        do
+            local page = pages["MINING"]
+
+            local frame, toggleBtn, knob = createToggle("AUTO MINE")
+            frame.Parent = page
+
+            toggleBtn.MouseEnter:Connect(function()
+                tween(toggleBtn, 0.15, {BackgroundColor3 = Color3.fromRGB(110,110,110)})
+            end)
+
+            toggleBtn.MouseLeave:Connect(function()
+                tween(toggleBtn, 0.15, {BackgroundColor3 = Color3.fromRGB(90,90,90)})
+            end)
+
+            toggleBtn.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    local new = not FeatureStatus.AutoMine
+                    ToggleAutoMine(new)
+
+                    if new then
+                        tween(knob, 0.2, {Position = UDim2.new(1, -21, 0, 1)})
+                        tween(toggleBtn, 0.2, {BackgroundColor3 = Color3.fromRGB(0,170,0)})
+                    else
+                        tween(knob, 0.2, {Position = UDim2.new(0, 1, 0, 1)})
+                        tween(toggleBtn, 0.2, {BackgroundColor3 = Color3.fromRGB(90,90,90)})
+                    end
+                end
+            end)
+        end
+
+        ------------------------------------------------------
+        -- FORGE PAGE CONTENT
+        ------------------------------------------------------
+        do
+            local page = pages["FORGE"]
+
+            local frame, toggleBtn, knob = createToggle("AUTO FORGE PERFECT")
+            frame.Parent = page
+
+            toggleBtn.MouseButton1Click:Connect(function()
+                local new = not FeatureStatus.AutoForgePerfect
+                ToggleAutoForgePerfect(new)
+
+                if new then
+                    tween(knob, 0.2, {Position = UDim2.new(1, -21, 0, 1)})
+                    tween(toggleBtn, 0.2, {BackgroundColor3 = Color3.fromRGB(0,170,0)})
+                else
+                    tween(knob, 0.2, {Position = UDim2.new(0, 1, 0, 1)})
+                    tween(toggleBtn, 0.2, {BackgroundColor3 = Color3.fromRGB(90,90,90)})
+                end
+            end)
+        end
     end
 
-
-    -- safe call
     pcall(buildGUI)
-
 end
