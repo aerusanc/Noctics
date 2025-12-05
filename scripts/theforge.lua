@@ -1,147 +1,219 @@
--- theforge.lua (FINAL SCRIPT GABUNGAN YANG DIOPTIMASI)
--- Menggunakan blok 'do' untuk menjamin scope lokal dan mencegah error 'nil value'.
+-- THE FORGE BETA — FIXED & CLEAN VERSION
+-- Noctics Hub by RYU
+-- Fully sanitized: no nil-call, no nil-parent, no GUI crash
 
-do 
-    -- ===================================================
-    -- BAGIAN 1: LAYANAN, VARIABEL, DAN STATUS FITUR
-    -- ===================================================
-
+do
+    ----------------------------
+    -- SERVICES & VARIABLES
+    ----------------------------
     local TweenService = game:GetService("TweenService")
     local UserInputService = game:GetService("UserInputService")
     local Players = game:GetService("Players")
     local CoreGui = game:GetService("CoreGui")
-    
+
     local FeatureStatus = {
         AutoMine = false,
         AutoForgePerfect = false,
         SelectedOres = {},
     }
-    
+
     local Threads = { AutoMine = nil }
-    
-    -- Variabel UI
-    local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+
+    local isMobile = UserInputService.TouchEnabled
     local windowWidth = isMobile and 400 or 520
     local windowHeight = isMobile and 500 or 450
-    local titleBarHeight = isMobile and 55 or 65
-    local padding = 15
+    local padding = 12
     local currentY = 0
-    local ContentContainer 
 
-    -- ===================================================
-    -- BAGIAN 2: LOGIKA FITUR (DEKLARASI SEMUA FUNGSI PERTAMA)
-    -- ===================================================
+    -- akan di set setelah GUI selesai dibuat
+    local ContentContainer = nil  
 
-    local function GetFeatureStatus() return FeatureStatus end
-    
+
+    ----------------------------
+    -- LOGIC FUNCTIONS
+    ----------------------------
+
+    local function GetFeatureStatus()
+        return FeatureStatus
+    end
+
     local function autoMineWorker()
         while FeatureStatus.AutoMine do
-            print("LOGIC: Auto Mining aktif.")
-            task.wait(1.5)
+            print("[Noctics] Auto Mine aktif...")
+            task.wait(1.2)
         end
     end
 
     local function ToggleAutoMine(state)
         FeatureStatus.AutoMine = state
+
         if state then
             Threads.AutoMine = task.spawn(autoMineWorker)
         else
-            if Threads.AutoMine then task.cancel(Threads.AutoMine) end
+            if Threads.AutoMine then
+                task.cancel(Threads.AutoMine)
+            end
             Threads.AutoMine = nil
         end
-        print("LOGIC: AutoMine diatur ke:", state)
+
+        print("[Noctics] AutoMine =", state)
     end
 
     local function ToggleAutoForgePerfect(state)
         FeatureStatus.AutoForgePerfect = state
-        print("LOGIC: AutoForgePerfect diatur ke:", state)
-        -- [Implementasi start/stop Auto Forge di sini]
+        print("[Noctics] AutoForgePerfect =", state)
     end
-    
+
     local function ToggleSelectedOre(oreName, state)
         FeatureStatus.SelectedOres[oreName] = state
-        print("LOGIC: Ore", oreName, "diatur ke:", state)
+        print("[Noctics] Ore", oreName, "=", state)
     end
-    
+
     local function CloseLogic()
         ToggleAutoMine(false)
         ToggleAutoForgePerfect(false)
-        print("LOGIC: Logika fitur dibersihkan.")
+        print("[Noctics] Semua fitur dimatikan.")
     end
 
-    -- ===================================================
-    -- BAGIAN 3: FUNGSI PEMBANGUNAN GUI PEMBANTU
-    -- ===================================================
 
-    local function createToggle(name, description, yOffset)
-        -- ... (Kode pembuatan Frame, Button, dan Corner) ...
-        local ToggleButton = Instance.new("TextButton")
-        -- ... (Set properti dan parenting ke ContentContainer) ...
-        currentY = yOffset + 50 + padding
-        return ToggleButton
+
+    ----------------------------
+    -- UI HELPERS
+    ----------------------------
+
+    local function createToggle(label, description)
+        -- FRAME WRAPPER
+        local Wrap = Instance.new("Frame")
+        Wrap.BackgroundTransparency = 1
+        Wrap.Size = UDim2.new(1, -20, 0, 55)
+        Wrap.Position = UDim2.new(0, 10, 0, currentY)
+        Wrap.Parent = ContentContainer
+
+        -- BUTTON
+        local Button = Instance.new("TextButton")
+        Button.Size = UDim2.new(1, -20, 0, 45)
+        Button.Position = UDim2.new(0, 10, 0, 5)
+        Button.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+        Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+        Button.Font = Enum.Font.GothamBold
+        Button.TextSize = 18
+        Button.Text = description
+        Button.Parent = Wrap
+
+        Instance.new("UICorner", Button).CornerRadius = UDim.new(0, 8)
+
+        currentY = currentY + 60
+        return Button
     end
 
-    -- ===================================================
-    -- BAGIAN 4: EKSEKUSI PEMBANGUNAN GUI UTAMA
-    -- ===================================================
+
+
+    ----------------------------
+    -- BUILD GUI
+    ----------------------------
 
     local function buildGUI()
         if CoreGui:FindFirstChild("TheForgeBETA") then
-            CoreGui:FindFirstChild("TheForgeBETA"):Destroy()
+            CoreGui.TheForgeBETA:Destroy()
         end
 
-        local ScreenGui = Instance.new("ScreenGui", CoreGui)
+        local ScreenGui = Instance.new("ScreenGui")
         ScreenGui.Name = "TheForgeBETA"
-        
-        local MainFrame = Instance.new("Frame", ScreenGui)
-        -- ... (Set properti MainFrame) ...
-        
-        local TitleBar = Instance.new("Frame", MainFrame)
-        local CloseButton = Instance.new("TextButton", TitleBar) -- Variabel lokal
-        -- ...
-        
-        local ContentFrame = Instance.new("ScrollingFrame", MainFrame)
-        ContentContainer = Instance.new("Frame", ContentFrame) -- Inisialisasi ContentContainer
-        -- ...
+        ScreenGui.Parent = CoreGui
 
-        -- --- KONTROL AUTO MINE ---
-        local AutoMineButton = createToggle("AutoMine", "⛏️ AUTO MINE", currentY)
-        local isAutoMineActive = GetFeatureStatus().AutoMine
-        -- ... (Set Text dan Color awal) ...
-        AutoMineButton.MouseButton1Click:Connect(function()
-            local newState = not isAutoMineActive
-            ToggleAutoMine(newState) -- AMAN: Memanggil fungsi yang dideklarasikan di Bagian 2
-            isAutoMineActive = newState
-            -- ... (Update Text dan Color) ...
+        -- MAIN FRAME
+        local Main = Instance.new("Frame")
+        Main.Size = UDim2.new(0, windowWidth, 0, windowHeight)
+        Main.Position = UDim2.new(0.5, -windowWidth/2, 0.5, -windowHeight/2)
+        Main.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+        Main.Parent = ScreenGui
+
+        Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
+
+        -- TITLEBAR
+        local TitleBar = Instance.new("Frame")
+        TitleBar.Size = UDim2.new(1, 0, 0, 50)
+        TitleBar.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+        TitleBar.Parent = Main
+        Instance.new("UICorner", TitleBar).CornerRadius = UDim.new(0, 12)
+
+        local Title = Instance.new("TextLabel")
+        Title.Size = UDim2.new(1, -50, 1, 0)
+        Title.Position = UDim2.new(0, 15, 0, 0)
+        Title.BackgroundTransparency = 1
+        Title.Text = "NOCTICS — THE FORGE"
+        Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+        Title.Font = Enum.Font.GothamBold
+        Title.TextSize = 20
+        Title.TextXAlignment = Enum.TextXAlignment.Left
+        Title.Parent = TitleBar
+
+        -- CLOSE BUTTON
+        local CloseButton = Instance.new("TextButton")
+        CloseButton.Size = UDim2.new(0, 40, 0, 40)
+        CloseButton.Position = UDim2.new(1, -45, 0, 5)
+        CloseButton.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+        CloseButton.Text = "X"
+        CloseButton.Font = Enum.Font.GothamBold
+        CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        CloseButton.TextSize = 18
+        CloseButton.Parent = TitleBar
+        Instance.new("UICorner", CloseButton)
+
+        -- CONTENT
+        local Scroll = Instance.new("ScrollingFrame")
+        Scroll.Size = UDim2.new(1, 0, 1, -50)
+        Scroll.Position = UDim2.new(0, 0, 0, 50)
+        Scroll.BackgroundTransparency = 1
+        Scroll.CanvasSize = UDim2.new(0, 0, 0, 600)
+        Scroll.ScrollBarThickness = 6
+        Scroll.Parent = Main
+
+        ContentContainer = Instance.new("Frame")
+        ContentContainer.BackgroundTransparency = 1
+        ContentContainer.Size = UDim2.new(1, 0, 0, 600)
+        ContentContainer.Parent = Scroll
+
+
+        ----------------------------
+        -- TOGGLES
+        ----------------------------
+
+        -- AutoMine
+        local AutoMineBtn = createToggle("AutoMine", "⛏️ AUTO MINE")
+        AutoMineBtn.MouseButton1Click:Connect(function()
+            local newState = not FeatureStatus.AutoMine
+            ToggleAutoMine(newState)
+            AutoMineBtn.BackgroundColor3 = newState
+                and Color3.fromRGB(0, 170, 0)
+                or Color3.fromRGB(35, 35, 35)
         end)
 
-        -- --- KONTROL AUTO FORGE PERFECT ---
-        local AutoForgeButton = createToggle("AutoForgePerfect", "⚡ AUTO FORGE PERFECT", currentY)
-        local isAutoForgeActive = GetFeatureStatus().AutoForgePerfect
-        -- ... (Set Text dan Color awal) ...
-        AutoForgeButton.MouseButton1Click:Connect(function()
-            local newState = not isAutoForgeActive
-            ToggleAutoForgePerfect(newState) -- AMAN: Memanggil fungsi yang dideklarasikan di Bagian 2
-            isAutoForgeActive = newState
-            -- ... (Update Text dan Color) ...
+        -- AutoForgePerfect
+        local ForgeBtn = createToggle("Forge", "⚡ AUTO FORGE PERFECT")
+        ForgeBtn.MouseButton1Click:Connect(function()
+            local newState = not FeatureStatus.AutoForgePerfect
+            ToggleAutoForgePerfect(newState)
+            ForgeBtn.BackgroundColor3 = newState
+                and Color3.fromRGB(0, 170, 0)
+                or Color3.fromRGB(35, 35, 35)
         end)
-        
-        -- Sesuaikan CanvasSize
-        -- ...
 
-        -- --- EVENT HANDLERS AKHIR ---
+
+        ----------------------------
+        -- CLOSE BUTTON
+        ----------------------------
+
         CloseButton.MouseButton1Click:Connect(function()
-            CloseLogic() -- AMAN: Memanggil fungsi yang dideklarasikan di Bagian 2
-            -- ... (Logika Tween Keluar) ...
+            CloseLogic()
             ScreenGui:Destroy()
         end)
 
-        -- ... (Logika Tween Masuk) ...
-        
-        print("✓ The Forge BETA: Skrip berhasil dieksekusi dan GUI ditampilkan!")
+        print("✓ Forge GUI Loaded.")
     end
 
-    -- EKSEKUSI UTAMA
-    pcall(buildGUI) 
 
-end -- Akhir dari blok 'do'
+    -- safe call
+    pcall(buildGUI)
+
+end
